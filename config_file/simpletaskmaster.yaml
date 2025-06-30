@@ -1,0 +1,28 @@
+programs:
+  echo_test:
+    cmd: "echo 'Hello from taskmaster' && sleep 10"
+    numprocs: 1
+    umask: "022"
+    workingdir: /tmp
+    autostart: false
+    autorestart: always
+    exitcodes: [0]
+    startretries: 3
+    starttime: 1
+    stopsignal: TERM
+    stoptime: 5
+    stdout: /tmp/echo_test.stdout
+    stderr: /tmp/echo_test.stderr
+    env:
+      TEST_VAR: "test_value"
+
+  sleep_test:
+    cmd: "sleep 30"
+    numprocs: 2
+    autostart: false
+    autorestart: unexpected
+    exitcodes: [0]
+    startretries: 2
+    starttime: 1
+    stopsignal: TERM
+    stoptime: 3

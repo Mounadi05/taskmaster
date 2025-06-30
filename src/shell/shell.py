@@ -23,13 +23,33 @@ class TaskmasterUI:
         self.daemon = daemon
         self.logger = logging.getLogger(__name__)
 
-        # Use mock data if no process manager provided
-        self.use_mock_data = process_manager is None
 
         self.setup_ui()
 
     def get_programs(self):
         """Get programs data from process manager or mock data"""
+        if self.process_manager is None:
+            # Mock data for testing purposes
+            return {
+                'nginx': {
+                    'status': 'running',
+                    'pid': 1234,
+                    'uptime': '2h 15m',
+                    'restarts': 0,
+                    'cmd': '/usr/sbin/nginx -g "daemon off;"',
+                    'numprocs': 1,
+                    'autostart': True,
+                    'autorestart': 'unexpected',
+                    'exitcodes': [0, 2],
+                    'startretries': 3,
+                    'starttime': 1,
+                    'stopsignal': 'TERM',
+                    'stoptime': 10,
+                    'stdout': '/var/log/nginx/stdout.log',
+                    'stderr': '/var/log/nginx/stderr.log'
+                },
+                # Add more mock programs as needed
+            }
         return self.process_manager.get_all_status() 
 
     def setup_ui(self):
@@ -332,7 +352,6 @@ class TaskmasterControlShell:
             raise
 
 
-# For standalone execution (backward compatibility)
 if __name__ == "__main__":
     # Initialize UI with mock data
     ui = TaskmasterUI()

@@ -1,3 +1,11 @@
+
+# Server configuration section
+server:
+    type: "http" 
+    port: 4242
+    host: "localhost"
+
+# Programs configuration section
 programs:
   echo_test:
     cmd: "echo 'Hello from taskmaster' && sleep 10"

@@ -2,29 +2,31 @@
 from .parser import ConfigParser
 from .validator import ConfigValidator
 
-
 class ConfigManager:    
-    def __init__(self):
-        self.parser = ConfigParser()
+    def __init__(self, config_file_path='config_file/taskmaster.yaml'):
+        self.parser = ConfigParser(config_file_path)
         self.validator = ConfigValidator()
-        self.config = None
+        
+        self.programs = self.parser.get_program()
+        self.server =  self.validator.validate_server(self.parser.get_server())
     
-    def load_config(self, config_path):
-        try:
-            config = self.parser.parse_config_file(config_path)
-            is_valid, errors = self.validator.validate_config(config)
-            
-            if is_valid:
-                self.config = config
-                return True, config, []
-            else:
-                return False, None, errors
-                
-        except (FileNotFoundError, Exception) as e:
-            return False, None, [str(e)]
+    def get_program_config(self, program_name):
+        return self.programs.get(program_name)
     
-    def get_config(self):
-        return self.config
+    def get_all_programs(self):
+        return self.programs
     
-    def reload_config(self, config_path):
-        return self.load_config(config_path)
+    def get_server_config(self):
+        return  self.server
+    
+    def reload_config(self):
+        """Reload configuration from file"""
+        self.parser = ConfigParser(self.parser.config_path)
+        self.server = self.parser.get_server_config()
+        self.programs = self.parser.get_program_configs()
+        
+        is_valid, errors = self.validator.validate_config(self.programs)
+        if not is_valid:
+            raise ValueError(f"Configuration validation failed: {errors}")
+        
+        return True

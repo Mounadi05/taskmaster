@@ -35,3 +35,38 @@ class ConfigValidator:
                 self.errors.append(f"Program '{program_name}' 'cmd' must be a non-empty string")
         
         return (len(self.errors) == 0), self.errors
+    
+ 
+            
+    def validate_server(self, server):
+        if not server:
+            return self.generate_config_server()
+        
+        
+        if 'type' not in server:
+            print("Error: Missing 'type' in server communication configuration")
+            raise ValueError("Missing 'type' in server communication configuration")
+            exit(1)
+        
+        comm_type = server['type']
+        
+        if 'port' not in server:
+            # Set default port based on type
+            if comm_type == 'socket':
+                server['port'] = 1337
+            elif comm_type == 'http':
+                server['port'] = 4242
+            else:
+               raise ValueError(f"Invalid server type '{comm_type}'. Must be 'socket' or 'http'.")
+        
+        return server
+
+    def generate_config_server(self):
+        """Generate a default configuration dictionary"""
+        return {
+            'server': {
+                'type': 'socket',
+                'port': 1337,
+                'host': 'localhost'
+                }
+            }

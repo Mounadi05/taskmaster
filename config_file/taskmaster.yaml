@@ -1,4 +1,12 @@
+# Server configuration
+# Controls how Taskmaster server communicates with clients
+server:
+    type: "http"        
+    port: 4242      
+
+# Programs configuration
 programs:
+  # Web server program
   nginx:
     cmd: "/usr/local/bin/nginx -c /etc/nginx/test.conf"
     numprocs: 1

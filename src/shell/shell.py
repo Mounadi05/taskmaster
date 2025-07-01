@@ -22,7 +22,7 @@ class TaskmasterUI:
         self.process_manager = process_manager
         self.daemon = daemon
         self.logger = logging.getLogger(__name__)
-
+        self.use_mock_data = process_manager is None
 
         self.setup_ui()
 
@@ -142,33 +142,326 @@ class TaskmasterUI:
 
     def show_help_view(self):
         self.body_walker[:] = [
-            urwid.Text(('title', "Taskmaster Control Shell - Help")),
+            urwid.Text(('title', "TASKMASTER CONTROL SHELL - HELP")),
             urwid.Divider(),
-            urwid.Text("Available Commands:"),
+            urwid.Text(('header', "OVERVIEW:")),
+            urwid.Text("  Interactive control interface for managing taskmaster programs."),
+            urwid.Text("  Use commands below to control program lifecycle and view status."),
             urwid.Divider(),
-            urwid.Text("  status                 - Show status of all programs"),
-            urwid.Text("  start <program>        - Start a program"),
-            urwid.Text("  stop <program>         - Stop a program"),
-            urwid.Text("  restart <program>      - Restart a program"),
-            urwid.Text("  detail <program>       - Show detailed info for a program"),
-            urwid.Text("  reload                 - Reload configuration"),
-            urwid.Text("  help                   - Show this help"),
-            urwid.Text("  quit                   - Exit taskmaster"),
+            urwid.Text(('header', "AVAILABLE COMMANDS:")),
             urwid.Divider(),
-            urwid.Text("Program Names:"),
+            urwid.Text(('success', "PROGRAM MANAGEMENT:")),
+            urwid.Text("  start <program>        - Start a specific program"),
+            urwid.Text("  stop <program>         - Stop a specific program"),
+            urwid.Text("  restart <program>      - Restart a specific program"),
+            urwid.Divider(),
+            urwid.Text(('info', "INFORMATION & MONITORING:")),
+            urwid.Text("  status                 - Show status overview of all programs"),
+            urwid.Text("  detail <program>       - Show detailed information for a program"),
+            urwid.Divider(),
+            urwid.Text(('warning', "CONFIGURATION & SYSTEM:")),
+            urwid.Text("  reload                 - Reload taskmaster configuration"),
+            urwid.Text("  help [command]         - Show general help or detailed command help"),
+            urwid.Text("  quit                   - Exit the control shell"),
+            urwid.Divider(),
+            urwid.Text(('header', "COMMAND SYNTAX:")),
+            urwid.Text("  • Commands are case-insensitive"),
+            urwid.Text("  • <program> refers to program names defined in configuration"),
+            urwid.Text("  • [command] indicates optional parameter"),
+            urwid.Text("  • Use 'help <command>' for detailed syntax and examples"),
             urwid.Divider(),
         ]
 
+        # Show available programs if any exist
         programs = self.get_programs()
-        for name in programs.keys():
-            self.body_walker.append(urwid.Text(f"  {name}"))
+        if programs:
+            self.body_walker.extend([
+                urwid.Text(('header', "AVAILABLE PROGRAMS:")),
+                urwid.Divider(),
+            ])
+
+            # Group programs by status for better organization
+            running_programs = []
+            stopped_programs = []
+            other_programs = []
+
+            for name, info in programs.items():
+                status = info.get('status', 'unknown')
+                if status == 'running':
+                    running_programs.append(name)
+                elif status == 'stopped':
+                    stopped_programs.append(name)
+                else:
+                    other_programs.append(name)
+
+            if running_programs:
+                self.body_walker.append(urwid.Text(('success', "  Running:")))
+                for name in sorted(running_programs):
+                    self.body_walker.append(urwid.Text(f"    {name}"))
+
+            if stopped_programs:
+                self.body_walker.append(urwid.Text(('warning', "  Stopped:")))
+                for name in sorted(stopped_programs):
+                    self.body_walker.append(urwid.Text(f"    {name}"))
+
+            if other_programs:
+                self.body_walker.append(urwid.Text(('info', "  Other:")))
+                for name in sorted(other_programs):
+                    self.body_walker.append(urwid.Text(f"    {name}"))
+
+            self.body_walker.append(urwid.Divider())
+        else:
+            self.body_walker.extend([
+                urwid.Text(('warning', "No programs currently configured.")),
+                urwid.Text("Use 'reload' to load configuration or check your config file."),
+                urwid.Divider(),
+            ])
+
+        self.body_walker.extend([
+            urwid.Text(('header', "USAGE EXAMPLES:")),
+            urwid.Text("  help start             - Show detailed help for start command"),
+            urwid.Text("  start nginx            - Start the nginx program"),
+            urwid.Text("  status                 - View all program statuses"),
+            urwid.Text("  detail webapp          - View detailed info for webapp"),
+            urwid.Text("  restart nginx          - Restart the nginx program"),
+            urwid.Divider(),
+            urwid.Text(('header', "NAVIGATION:")),
+            urwid.Text("  • Type commands in the input field at the bottom"),
+            urwid.Text("  • Press Enter to execute commands"),
+            urwid.Text("  • Use Ctrl+C or Ctrl+D to exit"),
+            urwid.Text("  • Type 'status' to return to the main status view"),
+            urwid.Divider(),
+            urwid.Text(('info', "For detailed help on any command, type: help <command>"))
+        ])
+
+        self.footer.set_text("General Help - Type 'help <command>' for detailed command help")
+
+    def show_command_help(self, command_name):
+        """Show detailed help for a specific command"""
+        command_name = command_name.lower()
+
+        # Define detailed help for each command
+        command_help = {
+            'status': {
+                'syntax': 'status',
+                'description': 'Display the status overview of all configured programs',
+                'parameters': 'None',
+                'examples': [
+                    'status  # Show status of all programs'
+                ],
+                'details': [
+                    'Shows a table with program name, status, PID, uptime, and restart count',
+                    'Status can be: running, stopped, fatal, starting',
+                    'This is the default view when starting the shell'
+                ]
+            },
+            'start': {
+                'syntax': 'start <program>',
+                'description': 'Start a specific program',
+                'parameters': '<program> - Name of the program to start',
+                'examples': [
+                    'start nginx     # Start the nginx program',
+                    'start webapp    # Start the webapp program'
+                ],
+                'details': [
+                    'Starts the specified program if it is not already running',
+                    'If the program is already running, displays a message',
+                    'The program must be defined in the configuration file'
+                ]
+            },
+            'stop': {
+                'syntax': 'stop <program>',
+                'description': 'Stop a specific program',
+                'parameters': '<program> - Name of the program to stop',
+                'examples': [
+                    'stop nginx      # Stop the nginx program',
+                    'stop webapp     # Stop the webapp program'
+                ],
+                'details': [
+                    'Stops the specified program if it is currently running',
+                    'If the program is already stopped, displays a message',
+                    'Uses the configured stop signal and timeout'
+                ]
+            },
+            'restart': {
+                'syntax': 'restart <program>',
+                'description': 'Restart a specific program',
+                'parameters': '<program> - Name of the program to restart',
+                'examples': [
+                    'restart nginx   # Restart the nginx program',
+                    'restart webapp  # Restart the webapp program'
+                ],
+                'details': [
+                    'Stops and then starts the specified program',
+                    'Increments the restart counter for the program',
+                    'Useful for applying configuration changes'
+                ]
+            },
+            'detail': {
+                'syntax': 'detail <program>',
+                'description': 'Show detailed information for a specific program',
+                'parameters': '<program> - Name of the program to view',
+                'examples': [
+                    'detail nginx    # Show detailed info for nginx',
+                    'detail webapp   # Show detailed info for webapp'
+                ],
+                'details': [
+                    'Displays comprehensive information about the program',
+                    'Includes status, PID, uptime, configuration settings',
+                    'Shows command, autostart, autorestart, and log file paths'
+                ]
+            },
+            'reload': {
+                'syntax': 'reload',
+                'description': 'Reload the taskmaster configuration',
+                'parameters': 'None',
+                'examples': [
+                    'reload          # Reload configuration from file'
+                ],
+                'details': [
+                    'Reloads the configuration file without restarting taskmaster',
+                    'New programs will be added, removed programs will be stopped',
+                    'Configuration changes for existing programs will be applied'
+                ]
+            },
+            'help': {
+                'syntax': 'help [command]',
+                'description': 'Show help information',
+                'parameters': '[command] - Optional command name for detailed help',
+                'examples': [
+                    'help            # Show general help with all commands',
+                    'help start      # Show detailed help for start command',
+                    'help stop       # Show detailed help for stop command'
+                ],
+                'details': [
+                    'Without arguments: shows overview of all available commands',
+                    'With command name: shows detailed help for that specific command',
+                    'Lists available program names for commands that require them'
+                ]
+            },
+            'quit': {
+                'syntax': 'quit',
+                'description': 'Exit the taskmaster control shell',
+                'parameters': 'None',
+                'examples': [
+                    'quit            # Exit the shell',
+                    'exit            # Alternative way to exit'
+                ],
+                'details': [
+                    'Cleanly exits the control shell interface',
+                    'Does not affect running programs',
+                    'Can also use Ctrl+C or Ctrl+D to exit'
+                ]
+            }
+        }
+
+        # Check if command exists
+        if command_name not in command_help:
+            self.body_walker[:] = [
+                urwid.Text(('title', f"COMMAND HELP - UNKNOWN COMMAND")),
+                urwid.Divider(),
+                urwid.Text(('error', f"ERROR: '{command_name}' is not a valid command.")),
+                urwid.Divider(),
+                urwid.Text(('header', "AVAILABLE COMMANDS:")),
+                urwid.Text(('success', "  Program Management:")),
+                urwid.Text("    start, stop, restart"),
+                urwid.Text(('info', "  Information & Monitoring:")),
+                urwid.Text("    status, detail"),
+                urwid.Text(('warning', "  Configuration & System:")),
+                urwid.Text("    reload, help, quit"),
+                urwid.Divider(),
+                urwid.Text(('header', "SUGGESTIONS:")),
+                urwid.Text("  • Type 'help' to see the complete help overview"),
+                urwid.Text("  • Type 'help <command>' for detailed help on a specific command"),
+                urwid.Text("  • Check your spelling - commands are case-insensitive"),
+                urwid.Divider(),
+                urwid.Text(('header', "NAVIGATION:")),
+                urwid.Text("  • Type 'help' to return to general help"),
+                urwid.Text("  • Type 'status' to return to main status view"),
+            ]
+            self.footer.set_text(f"Invalid command: '{command_name}' - Type 'help' for available commands")
+            return
+
+        # Display detailed help for the command
+        help_info = command_help[command_name]
+        self.body_walker[:] = [
+            urwid.Text(('title', f"COMMAND HELP - {command_name.upper()}")),
+            urwid.Divider(),
+            urwid.Text(('header', "SYNTAX:")),
+            urwid.Text(('info', f"  {help_info['syntax']}")),
+            urwid.Divider(),
+            urwid.Text(('header', "DESCRIPTION:")),
+            urwid.Text(f"  {help_info['description']}"),
+            urwid.Divider(),
+            urwid.Text(('header', "PARAMETERS:")),
+            urwid.Text(f"  {help_info['parameters']}"),
+            urwid.Divider(),
+            urwid.Text(('header', "USAGE EXAMPLES:")),
+        ]
+
+        for i, example in enumerate(help_info['examples'], 1):
+            self.body_walker.append(urwid.Text(('success', f"  {i}. {example}")))
 
         self.body_walker.extend([
             urwid.Divider(),
-            urwid.Text("Type 'status' to return to main view")
+            urwid.Text(('header', "DETAILED INFORMATION:")),
         ])
 
-        self.footer.set_text("Help - Type any command to continue")
+        for detail in help_info['details']:
+            self.body_walker.append(urwid.Text(f"  • {detail}"))
+
+        # Add program names for commands that need them
+        if command_name in ['start', 'stop', 'restart', 'detail']:
+            programs = self.get_programs()
+            if programs:
+                self.body_walker.extend([
+                    urwid.Divider(),
+                    urwid.Text(('header', "AVAILABLE PROGRAMS:")),
+                ])
+
+                # Group programs by status for better organization
+                running_programs = []
+                stopped_programs = []
+                other_programs = []
+
+                for name, info in programs.items():
+                    status = info.get('status', 'unknown')
+                    if status == 'running':
+                        running_programs.append(name)
+                    elif status == 'stopped':
+                        stopped_programs.append(name)
+                    else:
+                        other_programs.append(name)
+
+                if running_programs:
+                    self.body_walker.append(urwid.Text(('success', "  Running:")))
+                    for name in sorted(running_programs):
+                        self.body_walker.append(urwid.Text(f"    {name}"))
+
+                if stopped_programs:
+                    self.body_walker.append(urwid.Text(('warning', "  Stopped:")))
+                    for name in sorted(stopped_programs):
+                        self.body_walker.append(urwid.Text(f"    {name}"))
+
+                if other_programs:
+                    self.body_walker.append(urwid.Text(('info', "  Other:")))
+                    for name in sorted(other_programs):
+                        self.body_walker.append(urwid.Text(f"    {name}"))
+            else:
+                self.body_walker.extend([
+                    urwid.Text(('warning', "  No programs currently available.")),
+                    urwid.Text("  Use 'reload' to load configuration."),
+                ])
+
+        self.body_walker.extend([
+            urwid.Divider(),
+            urwid.Text(('header', "NAVIGATION:")),
+            urwid.Text("  • Type 'help' to return to general help"),
+            urwid.Text("  • Type 'status' to return to main status view"),
+            urwid.Text("  • Type 'help <other_command>' for help on other commands"),
+        ])
+
+        self.footer.set_text(f"Detailed help for '{command_name}' command")
 
     def get_status_color(self, status):
         colors = {
@@ -197,8 +490,13 @@ class TaskmasterUI:
             current_view = "status"
             self.refresh_view()
         elif cmd == "help":
-            current_view = "help"
-            self.refresh_view()
+            if args:
+                # Show detailed help for specific command
+                self.show_command_help(args[0])
+            else:
+                # Show general help view
+                current_view = "help"
+                self.refresh_view()
         elif cmd == "detail" and args:
             program_name = args[0]
             programs = self.get_programs()

@@ -1,8 +1,14 @@
 # Server configuration
 # Controls how Taskmaster server communicates with clients
+## server not required , if not exist it will use default values
+# server:
+#     type: "socket"  
+#     port: 1337     
+#     host: "localhost" 
 server:
-    type: "http"        
+    type: "http"    // http or socket
     port: 4242      
+    host: "localhost"  // Hostname or IP address    
 
 # Programs configuration
 programs:

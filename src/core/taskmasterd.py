@@ -8,6 +8,7 @@ import json
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from config import ConfigManager
+from process import ProcessManager, ProcessWorker, ProcessMonitor, ProcessSupervisor, ProcessCommands
 
 logging.basicConfig(
     filename='/tmp/taskamasterd.log',
@@ -17,6 +18,9 @@ logging.basicConfig(
 )
 
 class TaskmasterHTTPHandler(BaseHTTPRequestHandler):
+    def __init__(self, server_instance, *args, **kwargs):
+        self.taskmaster_server = server_instance
+        super().__init__(*args, **kwargs)
     
     def do_GET(self):
         """Handle GET requests"""
@@ -24,32 +28,27 @@ class TaskmasterHTTPHandler(BaseHTTPRequestHandler):
         query_params = parse_qs(parsed_path.query)
         
         if parsed_path.path == '/command':
-            command = query_params.get('cmd', [None])[0]
-            if command in ['start', 'stop']:
-                response = self.process_command(command)
+            cmd_list = query_params.get('cmd', [])
+            if not cmd_list:
+                self.send_error(400, "Missing command parameter")
+                return
+                
+            command, args = parse_request(cmd_list)
+            if not command:
+                self.send_error(400, "Invalid command format")
+                return
+
+            try:
+                response = process_command(command, args, self.taskmaster_server)
+
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
                 self.end_headers()
                 self.wfile.write(json.dumps(response).encode())
-            else:
-                self.send_error(400, "Invalid command. Use 'start' or 'stop'")
+            except Exception as e:
+                self.send_error(500, f"Error processing command: {str(e)}")
         else:
             self.send_error(404, "Endpoint not found")
-
-    
-    def process_command(self, command):
-        """Process the command and log it"""
-        if command == 'start':
-            message = "start done"
-        elif command == 'stop':
-            message = "stop done"
-        else:
-            message = "unknown command"
-        
-        logging.info(message)
-        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {message}")
-        
-        return {"status": "success", "message": message, "timestamp": datetime.now().isoformat()}
     
     def log_message(self, format, *args):
         """Override to suppress HTTP server logs"""
@@ -58,11 +57,12 @@ class TaskmasterHTTPHandler(BaseHTTPRequestHandler):
 class SocketServer:
     """Socket server for handling raw socket connections"""
     
-    def __init__(self, host='localhost', port=1337):
+    def __init__(self, host='localhost', port=1337, taskmaster_server=None):
         self.host = host
         self.port = port
         self.socket = None
         self.running = False
+        self.taskmaster_server = taskmaster_server
     
     def start(self):
         """Start the socket server"""
@@ -105,17 +105,17 @@ class SocketServer:
                 if not data:
                     break
                 
-                print(f"Received socket command: {data}")
+                try:
+                    command, args = parse_request(data.split())
+                    response = process_command(command, args, self.taskmaster_server)
+                except Exception as e:
+                    response = {
+                        "status": "error",
+                        "message": f"Error processing command: {str(e)}",
+                        "timestamp": datetime.now().isoformat()
+                    }
                 
-                if data.lower() in ['start', 'stop']:
-                    message = f"{data.lower()} done"
-                    logging.info(message)
-                    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {message}")
-                    response = f"{message}\n"
-                else:
-                    response = "Invalid command. Use 'start' or 'stop'\n"
-                
-                client_socket.send(response.encode())
+                client_socket.send(json.dumps(response).encode() + b'\n')
                 
         except Exception as e:
             print(f"Error handling socket client {address}: {e}")
@@ -132,12 +132,18 @@ class SocketServer:
 class TaskmasterServer:
     """Main Taskmaster server that handles both HTTP and Socket connections"""
     
-    def __init__(self, port, server_type='socket'):
+    def __init__(self, port, server_type='socket', config_manager=None):
         self.port = port
         self.server_type = server_type  # 'http', 'socket'
         self.http_server = None
         self.socket_server = None
         self.running = False
+        self.process_manager = ProcessManager(config_manager)
+        self.process_monitor = ProcessMonitor(self.process_manager)
+        self.process_supervisor = ProcessSupervisor(self.process_manager)
+        self.process_commands = ProcessCommands(self.process_manager)
+        # print("testing get status programs")
+        # print(self.process_manager.config_manager.get_all_program_configs())
     
     def start(self):
         """Start HTTP and/or Socket servers based on server_type"""
@@ -149,7 +155,8 @@ class TaskmasterServer:
         if self.server_type in ['http']:
             try:
                 http_port = self.port if self.port else 4242
-                self.http_server = HTTPServer(('localhost', http_port), TaskmasterHTTPHandler)
+                handler = lambda *args: TaskmasterHTTPHandler(self, *args)
+                self.http_server = HTTPServer(('localhost', http_port), handler)
                 http_thread = threading.Thread(target=self.http_server.serve_forever)
                 http_thread.daemon = True
                 http_thread.start()
@@ -163,7 +170,7 @@ class TaskmasterServer:
         if self.server_type in ['socket']:
             try:
                 socket_port = self.port if self.port else 1337
-                self.socket_server = SocketServer(port=socket_port)
+                self.socket_server = SocketServer(port=socket_port, taskmaster_server=self)
                 socket_thread = threading.Thread(target=self.socket_server.start)
                 socket_thread.daemon = True
                 socket_thread.start()
@@ -237,6 +244,44 @@ def signal_handler(signum, frame):
     print(f"\nReceived signal {signum}, shutting down...")
     sys.exit(0)
 
+
+def parse_request(message:list):
+    cmd = message[0]
+    args = message[1:]
+    print(f"Command: {cmd}, Args: {args}")
+    return cmd, args
+    
+def process_command(command, args, server_instance=None):
+        """Process the command and log it"""
+        # Get or create the process_commands instance
+        if not hasattr(process_command, 'process_commands'):
+            if server_instance and hasattr(server_instance, 'process_commands'):
+                process_command.process_commands = server_instance.process_commands
+            else:
+                # Create a new instance if server is not available
+                process_command.process_commands = ProcessCommands(ProcessManager(None))
+
+        response = None
+        if command == 'start':
+            response = process_command.process_commands.start(args[0] if args else None)
+        elif command == 'stop':
+            response = process_command.process_commands.stop(args[0] if args else None)
+        elif command == 'restart':
+            response = process_command.process_commands.restart(args[0] if args else None)
+        elif command == 'status':
+             response = process_command.process_commands.status(args[0] if args else None)
+        else:
+            response = {
+                "status": "error",
+                "message": "unknown command",
+                "timestamp": datetime.now().isoformat()
+            }
+        
+        # logging.info(response['message'])
+        # print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {response['message']}")
+        
+        return response    
+
 def main():
     """Main function"""
     parser = argparse.ArgumentParser(description='Taskmaster Server')
@@ -254,13 +299,13 @@ def main():
         
         with open('/tmp/Taskmasterd.pid', 'w') as f:
             f.write(str(os.getpid()))
-    Config = ConfigManager()
+    Config = ConfigManager("config_file/simpletaskmaster.yaml")
     server_config = Config.get_server_config()
     args.type = server_config.get('type', 'socket')
-    args.port = server_config.get('port', 1337 if args.type == 'socket' else 4242)
+    args.port = server_config.get('port', 1337)
     args.host = server_config.get('host', 'localhost')
 
-    server = TaskmasterServer(port=args.port, server_type=args.type)
+    server = TaskmasterServer(port=args.port, server_type=args.type, config_manager=Config)
     server.start()
 
 

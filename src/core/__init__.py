@@ -1,9 +1,8 @@
-# Core Application Module
+"""Core Application Module
 
 This module contains the main application logic for Taskmaster.
+"""
 
-## Files
+from .Taskmasterctl import TaskmasterClient as Taskmasterctl
 
-- `taskmaster.py` - Core Taskmaster class and main logic
-- `__init__.py` - Module initialization
-- `core.py` - Core server functionality
+__all__ = ['Taskmasterctl']

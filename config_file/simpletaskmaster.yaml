@@ -1,31 +1,76 @@
-
-# Server configuration section
+# Server configuration
+# Controls how Taskmaster server communicates with clients
+## server not required , if not exist it will use default values
+# server:
+#     type: "socket"  
+#     port: 1337     
+#     host: "localhost" 
 server:
-    type: "http" 
-    port: 4242
-    host: "localhost"
+    type: "http"    # http or socket     
+    # host: "localhost"  # Hostname or IP address    
+    port: 7000     # Port number for the server
+
+smtp:
+  enabled: true
+  server: smtp.example.com
+  port: 587
+  use_tls: true
+  username: "notifier@example.com"
+  password: "your_password"  # consider supporting env var or vault
+
+webui:
+  enabled: true
+  host: "127.0.0.1"     
+  port: 8080
+  auth:
+    enabled: true
+    username: "mounadi05"
+    password: "ytaya07" 
 
 # Programs configuration section
 programs:
-  echo_test:
-    cmd: "echo 'Hello from taskmaster' && sleep 10"
+  pro1:
+    cmd: "/home/kali/wwwl"
     numprocs: 1
     umask: "022"
+    user: "kali"
+    group: "kali"
+    priority: 10
     workingdir: /tmp
-    autostart: false
+    autostart: true
     autorestart: always
     exitcodes: [0]
     startretries: 3
     starttime: 1
     stopsignal: TERM
     stoptime: 5
-    stdout: /tmp/echo_test.stdout
+    on_failure:
+      smtp:
+        enabled: true
+        subject: "Echo Test Failed"
+        body: "The echo_test program failed to start."
+        from: "taskmaster@example.com"
+        to:
+          - "admin1@example.com"
+          - "admin2@example.com"
+    on_success:
+      smtp:
+        enabled: true
+        subject: "Echo Test Succeeded"
+        body: "The echo_test program started successfully."
+        from: "taskmaster@example.com"
+        to:
+          - "admin1@example.com"
+          - "admin2@example.com"
+    stdout: 
+      path : /tmp/echo_test.stdout
+      maxbytes: 1024
     stderr: /tmp/echo_test.stderr
     env:
       TEST_VAR: "test_value"
 
-  sleep_test:
-    cmd: "sleep 30"
+  program_2:
+    cmd: "/home/kali/program2.sh"
     numprocs: 2
     autostart: false
     autorestart: unexpected
@@ -34,3 +79,9 @@ programs:
     starttime: 1
     stopsignal: TERM
     stoptime: 3
+
+  scan_network:
+    cmd: "/usr/bin/nmap 192.168.1.1"
+    autostart: false
+    autorestart: true
+

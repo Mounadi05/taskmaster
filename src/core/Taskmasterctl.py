@@ -1,0 +1,63 @@
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+from config import ConfigParser, ConfigValidator, ConfigManager
+import sys, socket, requests, json, argparse
+
+class TaskmasterClient:
+    """Client to communicate with Taskmaster server"""
+    
+    def __init__(self,method, port, host):
+        self.method = method
+        self.port = port
+        self.host = host
+    def send_http_command(self, command):
+        """Send command via HTTP GET"""
+        try:
+            
+            url = f"http://{self.host}:{self.port}/command"
+            params = {'cmd': command}
+            
+            response = requests.get(url, params=params, timeout=5)
+            
+            if response.status_code == 200:
+                result = response.json()
+                return result
+            else:
+                print(f"HTTP Error: {response.status_code} - {response.text}")
+                return False
+                
+        except requests.RequestException as e:
+            print(f"HTTP connection error: {e}")
+            return False
+    
+    def send_socket_command(self, command):
+        """Send command via Socket"""
+        try:
+            print(f"Connecting to socket server at {self.host}:{self.port}")
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            client_socket.settimeout(5)
+            
+            client_socket.connect((self.host, self.port))
+            
+            client_socket.send(f"{command}\n".encode())
+            response = client_socket.recv(1024).decode().strip()
+            
+            client_socket.close()
+            return response
+            
+        except socket.error as e:
+            print(f"Socket connection error: {e}")
+            return False
+    
+    def send_command(self, command):
+        """Send command using specified method"""
+        print(f"Sending command: {command}")
+        if self.method == 'http':
+            return self.send_http_command(command)
+        elif self.method == 'socket':
+            return self.send_socket_command(command)
+        else:
+            print("Error: Invalid method. Use 'http' or 'socket'")
+            return False
+

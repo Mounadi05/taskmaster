@@ -36,11 +36,9 @@ class ProcessWorker:
             return False
 
         try:
-            # Prepare environment
             env = os.environ.copy()
             env.update(self.config.get('env', {}))
 
-            # Get user and group info if specified
             uid = None
             gid = None
             if 'user' in self.config:
@@ -179,7 +177,13 @@ class ProcessWorker:
                 "stopsignal": self.config.get('stopsignal', 'TERM'),
                 "stoptime": self.config.get('stoptime', 10),
                 "exitcodes": self.config.get('exitcodes', [0]),
-                "startretries": self.config.get('startretries', 3)
+                "startretries": self.config.get('startretries', 3),
+                "user": self.config.get('user'),
+                "group": self.config.get('group'),
+                "workingdir": self.config.get('workingdir','/tmp'),
+                "env": self.config.get('env', {}),
+                "umask": self.config.get('umask', '022'),
+                "priority": self.config.get('priority', None),
             }
         }
         return status

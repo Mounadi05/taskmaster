@@ -17,7 +17,6 @@ class TaskmasterClient:
             
             url = f"http://{self.host}:{self.port}/command"
             params = {'cmd': command}
-            
             response = requests.get(url, params=params, timeout=5)
             
             if response.status_code == 200:

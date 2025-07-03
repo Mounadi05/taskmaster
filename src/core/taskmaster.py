@@ -69,8 +69,6 @@ class TaskmasterUI:
     def refresh_view(self):
         if current_view == "status":
             self.show_status_view()
-        elif current_view == "detail":
-            self.show_detail_view()
         elif current_view == "help":
             self.show_help_view()
 
@@ -78,51 +76,19 @@ class TaskmasterUI:
         self.body_walker[:] = [
             urwid.Text(('title', "Program Status Overview")),
             urwid.Divider(),
-            urwid.Text(('header', f"{'Name':<15} {'Status':<10} {'PID':<8} {'Uptime':<10} {'Restarts':<8}")),
+            urwid.Text(('header', f"{'Name':<15} {'Status':<10} {'PID':<8} {'Uptime':<10} {'Restarts':<8} {'CMD':<40}")),
             urwid.Divider('-'),
         ]
         for name, info in self.programs.items():
             status_color = self.get_status_color(info['status'])
-            line = f"{name:<15} {info['status']:<10} {str(info['pid'] or '-'):<8} {info['uptime']:<10} {info['restarts']:<8}"
+            line = f"{name:<15} {info['status']:<10} {str(info['pid'] or '-'):<8} {info['uptime']:<10} {info['restarts']:<8} {info['cmd']:<40}"
             self.body_walker.append(urwid.Text((status_color, line)))
 
         self.body_walker.append(urwid.Divider())
 
         self.footer.set_text("Type 'help' for available commands")
 
-    def show_detail_view(self):
-        programs = self.programs
-        if not selected_program or selected_program not in programs:
-            self.body_walker[:] = [urwid.Text("No program selected or program not found")]
-            return
-
-        prog = programs[selected_program]
-        self.body_walker[:] = [
-            urwid.Text(('title', f"Program Details: {selected_program}")),
-            urwid.Divider(),
-            urwid.Text(f"Status: {prog['status']}"),
-            urwid.Text(f"PID: {prog['pid'] or 'N/A'}"),
-            urwid.Text(f"Uptime: {prog['uptime']}"),
-            urwid.Text(f"Restarts: {prog['restarts']}"),
-            urwid.Divider(),
-            urwid.Text("Configuration:"),
-            urwid.Text(f"  Command: {prog['cmd']}"),
-            urwid.Text(f"  Processes: {prog['numprocs']}"),
-            urwid.Text(f"  Autostart: {prog['autostart']}"),
-            urwid.Text(f"  Autorestart: {prog['autorestart']}"),
-            urwid.Text(f"  Exit codes: {prog['exitcodes']}"),
-            urwid.Text(f"  Start retries: {prog['startretries']}"),
-            urwid.Text(f"  Start time: {prog['starttime']}s"),
-            urwid.Text(f"  Stop signal: {prog['stopsignal']}"),
-            urwid.Text(f"  Stop time: {prog['stoptime']}s"),
-            urwid.Text(f"  Stdout: {prog['stdout']}"),
-            urwid.Text(f"  Stderr: {prog['stderr']}"),
-            urwid.Divider(),
-            urwid.Text("Type 'status' to return to main view")
-        ]
-
-        self.footer.set_text(f"Viewing details for {selected_program}")
-
+   
     def show_help_view(self):
         self.body_walker[:] = [
             urwid.Text(('title', "TASKMASTER CONTROL SHELL - HELP")),
@@ -480,16 +446,18 @@ class TaskmasterUI:
                 current_view = "help"
                 self.refresh_view()
         elif cmd == "detail" and args:
-            program_name = args[0]
-            programs = self.programs
+            program_name = args[0].strip()
+            programs = self.programs.keys()
             if program_name in programs:
-                selected_program = program_name
-                current_view = "detail"
-                self.refresh_view()
+                message = self.client.send_command(parts)
+                self.show_detail(message['data'], program_name)
             else:
                 self.footer.set_text(f"Error: Program '{program_name}' not found")
         elif cmd == "start" and args:
             if self.check_program_cmd(args[0]):
+                if args[0] in self.programs and (self.programs[args[0]]['status'] == 'running' or self.programs[args[0]]['status'] == 'starting'):
+                    self.footer.set_text(f"Program '{args[0]}' is already running.")
+                    return
                 message = self.client.send_command(parts)
                 self.programs[args[0]] = message['data']  
                 current_view = "status" 
@@ -497,18 +465,31 @@ class TaskmasterUI:
                 self.footer.set_text(f"\nStart command sent: {message['message']}")
         elif cmd == "stop" and args:
             if self.check_program_cmd(args[0]):
+                if args[0] not in self.programs or (self.programs[args[0]]['status'] != 'running' and self.programs[args[0]]['status'] != 'starting'):
+                    self.footer.set_text(f"Program '{args[0]}' is not running.")
+                    return
                 message = self.client.send_command(parts)
                 self.programs[args[0]] = message['data']  
                 current_view = "status" 
                 self.refresh_view()
                 self.footer.set_text(f"\nStop command sent: {message['message']}")
         elif cmd == "restart" and args:
+            start = True
             if self.check_program_cmd(args[0]):
+                if args[0] not in self.programs or (self.programs[args[0]]['status'] != 'running' and self.programs[args[0]]['status'] != 'starting'):
+                    start = False
                 message = self.client.send_command(parts)
-                self.programs[args[0]] = message['data']  
-                current_view = "status" 
+                self.programs[args[0]] = message['data']
+                current_view = "status"
                 self.refresh_view()
-                self.footer.set_text(f"\nRestart command sent: {message['message']}")
+                if start:
+                    self.footer.set_text(f"\n {start} : Restart command sent: {message['message']}")
+                else:
+                    if message['data']['status'] == 'starting':
+                        self.footer.set_text(f"\nstart command sent: program '{args[0]}' was not running, so it was started.")
+                    else:
+                        self.footer.set_text(f"\nRestart command sent: {message['message']}")
+
         elif cmd == "reload":
             self.reload_config()
         else:
@@ -541,7 +522,102 @@ class TaskmasterUI:
         self.host = server_config.get('host', 'localhost')
         self.client = Taskmasterctl(self.method, self.port, self.host)
         self.programs = self.get_programs()
+    
+    def check_status(self, program_name):
+        if program_name in self.programs:
+            return self.programs[program_name]['status']
+        else:
+            return None
+        
+    def show_detail(self, data,program_name):
 
+        global current_view
+        # current_view = "detail"
+        self.body_walker[:] = [
+            urwid.Text(('title', f"Program Details")),
+            urwid.Divider(),
+            # Basic Info Section
+            urwid.Text(('header', "Basic Information:")),
+            urwid.Text(f"Command: {data[program_name].get('cmd', 'N/A')}"),
+            urwid.Text(f"Status: {data[program_name].get('status', 'N/A')}"),
+            urwid.Text(f"PID: {data[program_name].get('pid', 'N/A')}"),
+            urwid.Text(f"Uptime: {data[program_name].get('uptime', 'N/A')} seconds"),
+            urwid.Text(f"Restarts: {data[program_name].get('restarts', 'N/A')}"),
+            urwid.Text(f"Number of Processes: {data[program_name]['config'].get('numprocs', 'N/A')}"),
+            urwid.Text(f"Umask: {data[program_name]['config'].get('umask', 'N/A')}"),
+            urwid.Text(f"User: {data[program_name]['config'].get('user', 'N/A')}"),
+            urwid.Text(f"Group: {data[program_name]['config'].get('group', 'N/A')}"),
+            urwid.Text(f"Priority: {data[program_name]['config'].get('priority', 'N/A')}"),
+            urwid.Text(f"Working Directory: {data[program_name]['config'].get('workingdir', 'N/A')}"),
+            urwid.Divider(),
+            # Process Control Section
+            urwid.Text(('header', "Process Control:")),
+            urwid.Text(f"Autostart: {data[program_name]['config'].get('autostart', 'N/A')}"),
+            urwid.Text(f"Autorestart: {data[program_name]['config'].get('autorestart', 'N/A')}"),
+            urwid.Text(f"Exit Codes: {data[program_name]['config'].get('exitcodes', 'N/A')}"),
+            urwid.Text(f"Start Retries: {data[program_name]['config'].get('startretries', 'N/A')}"),
+            urwid.Text(f"Start Time: {data[program_name]['config'].get('starttime', 'N/A')} seconds"),
+            urwid.Text(f"Stop Signal: {data[program_name]['config'].get('stopsignal', 'N/A')}"),
+            urwid.Text(f"Stop Time: {data[program_name]['config'].get('stoptime', 'N/A')} seconds"),
+            urwid.Divider(),
+        ]
+
+        # Logging Section
+        stdout = data.get('stdout', {})
+        if isinstance(stdout, dict):
+            self.body_walker.extend([
+                urwid.Text(('header', "Stdout Configuration:")),
+                urwid.Text(f"  Path: {stdout.get('path', 'N/A')}"),
+                urwid.Text(f"  Max Bytes: {stdout.get('maxbytes', 'N/A')}")
+            ])
+        else:
+            self.body_walker.append(urwid.Text(f"Stdout: {stdout}"))
+
+        self.body_walker.append(urwid.Text(f"Stderr: {data.get('stderr', 'N/A')}"))
+        self.body_walker.append(urwid.Divider())
+
+        # Environment Variables Section
+        env = data.get('env', {})
+        if env:
+            self.body_walker.extend([
+                urwid.Text(('header', "Environment Variables:")),
+            ])
+            for key, value in env.items():
+                self.body_walker.append(urwid.Text(f"  {key}: {value}"))
+            self.body_walker.append(urwid.Divider())
+
+        # Notifications Section
+        on_failure = data.get('on_failure', {}).get('smtp', {})
+        on_success = data.get('on_success', {}).get('smtp', {})
+
+        if on_failure or on_success:
+            self.body_walker.append(urwid.Text(('header', "Notifications:")))
+            
+            if on_failure:
+                self.body_walker.extend([
+                    urwid.Text(('warning', "On Failure:")),
+                    urwid.Text(f"  Enabled: {on_failure.get('enabled', 'N/A')}"),
+                    urwid.Text(f"  Subject: {on_failure.get('subject', 'N/A')}"),
+                    urwid.Text(f"  From: {on_failure.get('from', 'N/A')}"),
+                    urwid.Text("  To: " + ", ".join(on_failure.get('to', ['N/A'])))
+                ])
+
+            if on_success:
+                self.body_walker.extend([
+                    urwid.Text(('success', "On Success:")),
+                    urwid.Text(f"  Enabled: {on_success.get('enabled', 'N/A')}"),
+                    urwid.Text(f"  Subject: {on_success.get('subject', 'N/A')}"),
+                    urwid.Text(f"  From: {on_success.get('from', 'N/A')}"),
+                    urwid.Text("  To: " + ", ".join(on_success.get('to', ['N/A'])))
+                ])
+
+        self.body_walker.extend([
+            urwid.Divider(),
+            urwid.Text(('info', "Press 'status' to return to the main view"))
+        ])
+
+        self.footer.set_text("Viewing program details")
+        
 
 
 def on_input(key):
@@ -622,3 +698,8 @@ if __name__ == "__main__":
     # Run the application
     loop = urwid.MainLoop(ui.main_frame, palette, unhandled_input=on_input)
     loop.run()
+
+
+
+
+

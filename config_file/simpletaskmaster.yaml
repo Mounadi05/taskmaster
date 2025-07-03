@@ -8,7 +8,7 @@
 server:
     type: "http"    # http or socket     
     # host: "localhost"  # Hostname or IP address    
-    port: 7000     # Port number for the server
+    port: 9090     # Port number for the server
 
 smtp:
   enabled: true
@@ -36,7 +36,7 @@ programs:
     user: "kali"
     group: "kali"
     priority: 10
-    workingdir: /tmp
+    workingdir: /home/kali
     autostart: true
     autorestart: always
     exitcodes: [0]
@@ -63,9 +63,9 @@ programs:
           - "admin1@example.com"
           - "admin2@example.com"
     stdout: 
-      path : /tmp/echo_test.stdout
+      path : /tmp/pro1.stdout
       maxbytes: 1024
-    stderr: /tmp/echo_test.stderr
+    stderr: /tmp/pro1.stderr
     env:
       TEST_VAR: "test_value"
 
@@ -85,3 +85,18 @@ programs:
     autostart: false
     autorestart: true
 
+  pro6:
+    cmd: "/home/kali/pro6.sh"
+    numprocs: 4
+    umask: "022"
+    user: "kali"
+    group: "kali"
+    priority: 10
+    workingdir: /tmp
+    autostart: true
+    autorestart: always
+    exitcodes: [0]
+    startretries: 3
+    starttime: 1
+    stopsignal: TERM
+    stoptime: 5

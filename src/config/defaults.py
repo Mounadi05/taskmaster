@@ -8,21 +8,14 @@ def get_supported_signals() -> List[str]:
     """Get list of supported signals."""
     return ['TERM', 'HUP', 'INT', 'QUIT', 'KILL', 'USR1', 'USR2']
 
-def validate_user(username: str) -> bool:
-    """Validate if user exists."""
-    try:
-        pwd.getpwnam(username)
-        return True
-    except KeyError:
-        return False
 
-def validate_group(groupname: str) -> bool:
-    """Validate if group exists."""
-    try:
-        grp.getgrnam(groupname)
-        return True
-    except KeyError:
-        return False
+def get_current_user() -> str:
+    """Get the current user name."""
+    return pwd.getpwuid(os.getuid()).pw_name
+
+def get_current_group() -> str:
+    """Get the current group name."""
+    return grp.getgrgid(os.getgid()).gr_name
 
 # Program configuration defaults and validation rules
 PROGRAM_DEFAULTS = {
@@ -97,19 +90,13 @@ PROGRAM_DEFAULTS = {
         'help': 'Stdout log file path or configuration',
         'sub_schema': {
             'path': {'type': str, 'required': True},
-            'maxbytes': {'type': int, 'default': 0},
-            'backups': {'type': int, 'default': 0}
+            'maxbytes': {'type': int, 'default': 0}
         }
     },
     'stderr': {
-        'default': None,
-        'type': (str, dict),
-        'help': 'Stderr log file path or configuration',
-        'sub_schema': {
-            'path': {'type': str, 'required': True},
-            'maxbytes': {'type': int, 'default': 0},
-            'backups': {'type': int, 'default': 0}
-        }
+        'default': None,   
+        'path': {'type': str, 'required': True}
+        
     },
     'env': {
         'default': {},
@@ -117,22 +104,20 @@ PROGRAM_DEFAULTS = {
         'help': 'Environment variables to set'
     },
     'user': {
-        'default': None,
+        'default': get_current_user(),
         'type': str,
-        'validate': validate_user,
         'help': 'User to run as'
     },
     'group': {
-        'default': None,
+        'default': get_current_group(),
         'type': str,
-        'validate': validate_group,
         'help': 'Group to run as'
     },
     'priority': {
-        'default': 999,
+        'default': 50,
         'type': int,
-        'min': -20,
-        'max': 19,
+        'min': 0,
+        'max': 50,
         'help': 'Process priority (niceness)'
     }
 }
@@ -178,11 +163,6 @@ SMTP_DEFAULTS = {
         'max': 65535,
         'help': 'SMTP server port'
     },
-    'use_tls': {
-        'default': True,
-        'type': bool,
-        'help': 'Use TLS for SMTP connection'
-    },
     'username': {
         'default': None,
         'type': str,
@@ -214,18 +194,5 @@ WEBUI_DEFAULTS = {
         'max': 65535,
         'help': 'Web interface port number'
     },
-    'auth': {
-        'default': {
-            'enabled': True,
-            'username': 'admin',
-            'password': 'changeme'
-        },
-        'type': dict,
-        'help': 'Web interface authentication settings',
-        'sub_schema': {
-            'enabled': {'type': bool, 'default': True},
-            'username': {'type': str, 'default': 'mounadi05'},
-            'password': {'type': str, 'default': 'ytaya07'}
-        }
-    }
+
 }

@@ -28,7 +28,6 @@ webui:
     password: "ytaya07" 
 
 # Programs configuration section
-programs:
 #   pro1:
 #     cmd: "/home/kali/wwwl"
 #     numprocs: 1
@@ -69,21 +68,12 @@ programs:
 #     env:
 #       TEST_VAR: "test_value"
 
-#   program_2:
-#     cmd: "/home/kali/program2.sh"
-#     numprocs: 2
-#     autostart: true
-#     autorestart: unexpected
-#     exitcodes: [0]
-#     startretries: 2
-#     startsecs: 1
-#     stopsignal: TERM
-#     stoptsecs: 3
+
+programs:
 
   scan_network:
     cmd: "/usr/bin/nmap 192.168.1.1"
     autostart: true
-    autorestart: always
     user: "kali"
     group: "kali"
     priority: 10
@@ -119,17 +109,30 @@ programs:
     priority: 10
     workingdir: /home/kali/testing/
     autostart: true
-    autorestart: always
     exitcodes: [0]
     startretries: 3
 
-  echo_test:
-    cmd: "echo 'Hello, World!'"
+  test_signal:
+    cmd: "python3 /home/kali/work/test_signal.py"
     numprocs: 1
     umask: "022"
-    user: "kali"
-    group: "kali"
     priority: 10
     workingdir: /home/kali
     autostart: true
-    
+    stopsignal: USR1
+    stoptsecs: 2
+    stdout: 
+      path : /tmp/signal.stdout
+      maxbytes: 1024
+    stderr: /tmp/signal.stderr
+  
+  pro4:
+    cmd: "/home/kali/test05"
+    numprocs: 11
+    umask: "022"
+    exitcodes: [-9]
+    autorestart: unexpected
+    stdout: 
+      path : /tmp/05.stdout
+      maxbytes: 1024
+    stderr: /tmp/05.stderr

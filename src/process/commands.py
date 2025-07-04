@@ -99,7 +99,6 @@ class ProcessCommands:
 
     def status(self, program_name: Optional[str] = None) -> Dict[str, Any]:
         """Get program status."""
-        print("--------------------- in status ---------------------")
         try:
             if program_name:
                 if not self.manager.program_exists(program_name):
@@ -109,7 +108,7 @@ class ProcessCommands:
                         "timestamp": datetime.now().isoformat()
                     }
                 status_data = self.manager.get_program_status(program_name)
-                print(f"Status data for {program_name}: {status_data}")
+                # print(f"Status data for {program_name}: {status_data}")
                 return {
                     "status": "success",
                     "data": {program_name: status_data},
@@ -117,7 +116,7 @@ class ProcessCommands:
                 }
             else:
                 all_statuses = self.manager.get_all_status()
-                print(f"All statuses: {all_statuses}")
+                # print(f"All statuses: {all_statuses}")
                 return {
                     "status": "success",
                     "data": all_statuses,

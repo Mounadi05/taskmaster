@@ -20,27 +20,15 @@ class ProcessManager:
         self.logger = logging.getLogger(__name__)
         self.processes: Dict[str, ProcessWorker] = {}
         self.monitor = ProcessMonitor(self)
-        self.monitor.start_monitoring()
         self.load_programs()
         self.start_all_autostart()
+        self.monitor.start_monitoring()
         
     def load_programs(self):
         """Load program configurations and initialize workers."""
         programs = self.config_manager.get_all_program_configs()
-        # print("------------------------------------------------------------------")
-        # print(programs)
-        # print("------------------------------------------------------------------")
         for name, config in programs.items():
             self.processes[name] = ProcessWorker(name, config, self)
-
-    def should_autorestart(self, program_name: str) -> bool:
-        """Check if a program should be auto-restarted."""
-        if not self.program_exists(program_name):
-            self.logger.error(f"Program '{program_name}' not found")
-            return False
-
-        worker = self.processes[program_name]
-        return worker.should_autorestart()
     
     def program_exists(self, program_name: str) -> bool:
         """Check if a program exists in configuration."""
@@ -87,7 +75,6 @@ class ProcessManager:
 
     def start_all_autostart(self):
         """Start all programs configured for autostart."""
-        print("-----------")
         for name, worker in self.processes.items():
             if worker.config.get('autostart', False):
                 print(worker.config)
@@ -99,47 +86,3 @@ class ProcessManager:
         for worker in self.processes.values():
             if worker.is_running():
                 worker.stop()
-
-    # def reload_config(self):
-    #     """Reload program configurations."""
-    #     # Store old program states
-    #     old_states = {name: worker.get_status() for name, worker in self.processes.items()}
-    #     old_programs = set(self.processes.keys())
-
-    #     # Load new configurations
-    #     programs = self.config_manager.get_all_program_configs()
-    #     new_programs = set(programs.keys())
-
-    #     # Stop removed programs
-    #     for name in old_programs - new_programs:
-    #         if name in self.processes:
-    #             self.logger.info(f"Stopping removed program: {name}")
-    #             self.processes[name].stop()
-    #             del self.processes[name]
-
-    #     # Update existing and add new programs
-    #     for name, config in programs.items():
-    #         if name in self.processes:
-    #             # Update existing program
-    #             worker = self.processes[name]
-    #             was_running = worker.is_running()
-    #             worker.update_config(config)
-    #             if was_running:
-    #                 worker.restart()
-    #         else:
-    #             # Add new program
-    #             self.processes[name] = ProcessWorker(name, config, self)
-    #             if config.get('autostart', False):
-    #                 self.processes[name].start()
-
-    # def handle_program_exit(self, program_name: str, exit_code: int):
-    #     """Handle program exit event."""
-    #     if not self.program_exists(program_name):
-    #         return
-
-    #     worker = self.processes[program_name]
-    #     self.supervisor.handle_exit(worker, exit_code)
-
-    def check_health(self):
-        """Check health of all programs."""
-        self.monitor.check_all()

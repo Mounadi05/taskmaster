@@ -31,26 +31,8 @@ class ConfigManager:
         self.server = self.parser.get_server()
         print(f"Server configuration: {self.server}")
 
-    
-    def load_config(self, config_file: str) -> Tuple[bool, List[str]]:
-     
-        self.config_file = config_file
-        success, result = self.parser.parse_file(config_file)
         
-        if not success:
-            return False, [str(result.get('error', 'Unknown error'))]
-            
-        self.config = result
-        
-        self._process_env_vars()
-        
-        self._process_file_paths()
-        
-        is_valid, errors = self.validator.validate_config(self.config)
-        return is_valid, errors
-        
-        
-    def _process_env_vars(self) -> None:
+    def process_env_vars(self) -> None:
         """Process environment variables in configuration values."""
         def replace_env_vars(value: Any) -> Any:
             if isinstance(value, str):
@@ -66,7 +48,7 @@ class ConfigManager:
             
         self.config = replace_env_vars(self.config)
         
-    def _process_file_paths(self) -> None:
+    def process_file_paths(self) -> None:
         if 'programs' in self.config:
             for prog_name, prog_config in self.config['programs'].items():
                 if 'workingdir' in prog_config:
@@ -80,13 +62,13 @@ class ConfigManager:
                             if 'path' in prog_config[stream]:
                                 prog_config[stream]['path'] = self._resolve_path(prog_config[stream]['path'])
                                 
-    def _resolve_path(self, path: str) -> str:
+    def resolve_path(self, path: str) -> str:
         """Resolve a path to its absolute form."""
         if not path:
             return path
             
         # Replace environment variables
-        path = self._process_env_vars(path)
+        path = self.process_env_vars(path)
         
         # Convert to absolute path if relative
         if not os.path.isabs(path):

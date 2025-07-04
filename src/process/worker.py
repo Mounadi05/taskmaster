@@ -31,8 +31,6 @@ class ProcessWorker:
 
 
     def start(self) -> bool:
-        print("---------------------- Start the process. ----------------------")
-        print(f"Starting process {self.name} with command: {self.config['cmd']}")
         if self.is_running():
             self.logger.warning(f"Process {self.name} is already running")
             return False
@@ -69,7 +67,6 @@ class ProcessWorker:
             stderr = self._setup_log_file('stderr')
 
             # Start the process
-            print(f"*** Starting process {self.name} with command: {self.config['cmd']}")
             self.process = subprocess.Popen(
                 self.config['cmd'].split(),
                 stdout=stdout,
@@ -96,29 +93,31 @@ class ProcessWorker:
 
     def stop(self) -> bool:
         """Stop the process."""
+
         if not self.is_running():
             return True
 
         try:
-            # Get stop signal from config
+
             stop_signal = getattr(signal, f"SIG{self.config.get('stopsignal', 'TERM')}")
             stop_time = self.config.get('stoptsecs', 10)
 
-            # Send stop signal
             os.kill(self.pid, stop_signal)
             self.status = "stopping"
             
             # Wait for process to stop
             try:
+                print(f"Waiting for process {self.name} to stop... )")
                 self.process.wait(timeout=stop_time)
                 self.status = "stopped"
                 self.stop_time = datetime.now()
                 return True
             except subprocess.TimeoutExpired:
                 # Force kill if timeout
+                print(f"Process {self.name} did not stop in time, force killing with SIGKILL")
                 os.kill(self.pid, signal.SIGKILL)
                 self.process.wait()
-                self.status = "killed"
+                self.status = "stopped"
                 self.stop_time = datetime.now()
                 return True
 
@@ -128,15 +127,11 @@ class ProcessWorker:
             self.stop_time = datetime.now()
             return True
         except Exception as e:
+            print(f"Error stopping process {self.name}: {e}")
             self.logger.error(f"Error stopping process {self.name}: {e}")
             return False
 
     def restart(self) -> bool:
-        """Restart the process."""
-        if self.is_running():
-            if not self.stop():
-                return False
-
         success = self.start()
         if success:
             self.restart_count += 1
@@ -155,7 +150,6 @@ class ProcessWorker:
                 print(f"Process {self.name} with PID {self.pid} has exited with code {self.exit_code}")
                 self.status = "exited"
                 self.stop_time = datetime.now()
-                self.manager.monitor.handle_process_death(self)
                 return False
                 
             if self.status == "starting" and self.start_time:
@@ -256,17 +250,15 @@ class ProcessWorker:
             return f"{minutes}m {seconds}s"
         else:
             return f"{seconds}s"
-    
-    def should_autorestart(self) -> bool:
-        """Check if the process should be auto-restarted."""
-        if self.status in ["stopped", "stopping", "exited", "killed"]:
-            return False
         
+    def should_autorestart(self) -> bool:
+                
         autorestart = self.config.get('autorestart', 'unexpected')
         exitcodes = self.config.get('exitcodes', [0])
         
         if autorestart == 'always':
-            return True
+            print(f"Process {self.name} should always restart.")
+            self.restart()
         elif autorestart == 'unexpected' and self.exit_code not in exitcodes:
             return True
         

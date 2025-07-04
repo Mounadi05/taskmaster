@@ -436,6 +436,7 @@ class TaskmasterUI:
             raise urwid.ExitMainLoop()
         elif cmd == "status":
             current_view = "status"
+            self.programs = self.get_programs()
             self.refresh_view()
         elif cmd == "help":
             if args:
@@ -556,7 +557,7 @@ class TaskmasterUI:
             urwid.Text(f"Autorestart: {data[program_name]['config'].get('autorestart', 'N/A')}"),
             urwid.Text(f"Exit Codes: {data[program_name]['config'].get('exitcodes', 'N/A')}"),
             urwid.Text(f"Start Retries: {data[program_name]['config'].get('startretries', 'N/A')}"),
-            urwid.Text(f"Start Time: {data[program_name]['config'].get('starttime', 'N/A')} seconds"),
+            urwid.Text(f"Start Time: {data[program_name]['config'].get('startsecs', 'N/A')} seconds"),
             urwid.Text(f"Stop Signal: {data[program_name]['config'].get('stopsignal', 'N/A')}"),
             urwid.Text(f"Stop Time: {data[program_name]['config'].get('stoptime', 'N/A')} seconds"),
             urwid.Divider(),

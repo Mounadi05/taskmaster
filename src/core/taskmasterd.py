@@ -269,7 +269,7 @@ def process_command(command, args, server_instance=None):
         elif command == 'restart':
             response = process_command.process_commands.restart(args[0] if args else None)
         elif command == 'status':
-             response = process_command.process_commands.status(args[0] if args else None)
+             response = process_command.process_commands.status()
         elif command == 'detail':
             if args:
                 response = process_command.process_commands.status(args[0])

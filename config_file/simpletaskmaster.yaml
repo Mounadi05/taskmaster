@@ -29,61 +29,70 @@ webui:
 
 # Programs configuration section
 programs:
-  pro1:
-    cmd: "/home/kali/wwwl"
-    numprocs: 1
-    umask: "022"
-    user: "kali"
-    group: "kali"
-    priority: 10
-    workingdir: /home/kali
-    autostart: true
-    autorestart: always
-    exitcodes: [0]
-    startretries: 3
-    starttime: 1
-    stopsignal: TERM
-    stoptime: 5
-    on_failure:
-      smtp:
-        enabled: true
-        subject: "Echo Test Failed"
-        body: "The echo_test program failed to start."
-        from: "taskmaster@example.com"
-        to:
-          - "admin1@example.com"
-          - "admin2@example.com"
-    on_success:
-      smtp:
-        enabled: true
-        subject: "Echo Test Succeeded"
-        body: "The echo_test program started successfully."
-        from: "taskmaster@example.com"
-        to:
-          - "admin1@example.com"
-          - "admin2@example.com"
-    stdout: 
-      path : /tmp/pro1.stdout
-      maxbytes: 1024
-    stderr: /tmp/pro1.stderr
-    env:
-      TEST_VAR: "test_value"
+#   pro1:
+#     cmd: "/home/kali/wwwl"
+#     numprocs: 1
+#     umask: "022"
+#     user: "kali"
+#     group: "kali"
+#     priority: 10
+#     workingdir: /home/kali
+#     autostart: true
+#     autorestart: always
+#     exitcodes: [0]
+#     startretries: 3
+#     startsecs: 1
+#     stopsignal: TERM
+#     stoptime: 5
+#     on_failure:
+#       smtp:
+#         enabled: true
+#         subject: "Echo Test Failed"
+#         body: "The echo_test program failed to start."
+#         from: "taskmaster@example.com"
+#         to:
+#           - "admin1@example.com"
+#           - "admin2@example.com"
+#     on_success:
+#       smtp:
+#         enabled: true
+#         subject: "Echo Test Succeeded"
+#         body: "The echo_test program started successfully."
+#         from: "taskmaster@example.com"
+#         to:
+#           - "admin1@example.com"
+#           - "admin2@example.com"
+#     stdout: 
+#       path : /tmp/pro1.stdout
+#       maxbytes: 1024
+#     stderr: /tmp/pro1.stderr
+#     env:
+#       TEST_VAR: "test_value"
 
-  program_2:
-    cmd: "/home/kali/program2.sh"
-    numprocs: 2
-    autostart: false
-    autorestart: unexpected
-    exitcodes: [0]
-    startretries: 2
-    starttime: 1
-    stopsignal: TERM
-    stoptime: 3
+#   program_2:
+#     cmd: "/home/kali/program2.sh"
+#     numprocs: 2
+#     autostart: true
+#     autorestart: unexpected
+#     exitcodes: [0]
+#     startretries: 2
+#     startsecs: 1
+#     stopsignal: TERM
+#     stoptime: 3
 
   scan_network:
     cmd: "/usr/bin/nmap 192.168.1.1"
-    autostart: false
-    autorestart: true
+    autostart: true
+    autorestart: never
+    user: "kali"
+    group: "kali"
+    priority: 10
+    workingdir: /home/kali/work
+    stdout: 
+      path : /tmp/www.stdout
+      maxbytes: 1024
+    startsecs: 5
+    
 
   pro6:
     cmd: "/home/kali/pro6.sh"
@@ -94,9 +103,33 @@ programs:
     priority: 10
     workingdir: /tmp
     autostart: true
+    autorestart: never
+    exitcodes: [0]
+    startretries: 3
+    startsecs: 1
+    stopsignal: TERM
+    stoptime: 5
+
+  writer:
+    cmd: "python3 /home/kali/testing/test.py"
+    numprocs: 5
+    umask: "777"
+    user: "kali"
+    group: "kali"
+    priority: 10
+    workingdir: /home/kali/testing/
+    autostart: true
     autorestart: always
     exitcodes: [0]
     startretries: 3
-    starttime: 1
-    stopsignal: TERM
-    stoptime: 5
+
+  echo_test:
+    cmd: "echo 'Hello, World!'"
+    numprocs: 1
+    umask: "022"
+    user: "kali"
+    group: "kali"
+    priority: 10
+    workingdir: /home/kali
+    autostart: true
+    

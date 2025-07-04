@@ -26,7 +26,7 @@ class ProcessMonitor:
                 # Check if process has been running long enough to be considered stable
                 if worker.start_time:
                     uptime = (datetime.now() - worker.start_time).total_seconds()
-                    if uptime >= worker.config.get('starttime', 1):
+                    if uptime >= worker.config.get('startsecs', 1):
                         worker.status = "running"
                         
             else:

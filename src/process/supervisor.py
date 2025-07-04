@@ -48,7 +48,5 @@ class ProcessSupervisor:
     def can_retry(self, worker) -> bool:
         """Check if process can be retried."""
         startretries = worker.config.get('startretries', 3)
-        if startretries == 0:  # 0 means infinite retries
-            return True
             
         return worker.restart_count < startretries

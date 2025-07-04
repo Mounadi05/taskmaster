@@ -30,7 +30,8 @@ class ProcessWorker:
         self.pid: Optional[int] = None
 
     def start(self) -> bool:
-        """Start the process."""
+        print("---------------------- Start the process. ----------------------")
+        print(f"Starting process {self.name} with command: {self.config['cmd']}")
         if self.is_running():
             self.logger.warning(f"Process {self.name} is already running")
             return False
@@ -67,6 +68,7 @@ class ProcessWorker:
             stderr = self._setup_log_file('stderr')
 
             # Start the process
+            print(f"*** Starting process {self.name} with command: {self.config['cmd']}")
             self.process = subprocess.Popen(
                 self.config['cmd'].split(),
                 stdout=stdout,
@@ -151,7 +153,7 @@ class ProcessWorker:
             # Update status if process exists
             if self.status == "starting" and self.start_time:
                 start_duration = (datetime.now() - self.start_time).total_seconds()
-                if start_duration >= self.config.get('starttime', 1):
+                if start_duration >= self.config.get('startsecs', 1):
                     self.status = "running"
             
             return True
@@ -173,7 +175,7 @@ class ProcessWorker:
                 "numprocs": self.config.get('numprocs', 1),
                 "autostart": self.config.get('autostart', False),
                 "autorestart": self.config.get('autorestart', 'unexpected'),
-                "starttime": self.config.get('starttime', 1),
+                "startsecs": self.config.get('startsecs', 1),
                 "stopsignal": self.config.get('stopsignal', 'TERM'),
                 "stoptime": self.config.get('stoptime', 10),
                 "exitcodes": self.config.get('exitcodes', [0]),

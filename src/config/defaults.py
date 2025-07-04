@@ -56,7 +56,7 @@ PROGRAM_DEFAULTS = {
         'help': 'Start automatically when taskmaster starts'
     },
     'autorestart': {
-        'default': 'unexpected',
+        'default': 'never',
         'type': str,
         'choices': ['always', 'never', 'unexpected'],
         'help': 'Restart policy (always, never, unexpected)'
@@ -73,7 +73,7 @@ PROGRAM_DEFAULTS = {
         'min': 0,
         'help': 'Number of retries before giving up'
     },
-    'starttime': {
+    'startsecs': {
         'default': 1,
         'type': int,
         'min': 0,

@@ -117,6 +117,7 @@ class ProcessCommands:
                 }
             else:
                 all_statuses = self.manager.get_all_status()
+                print(f"All statuses: {all_statuses}")
                 return {
                     "status": "success",
                     "data": all_statuses,

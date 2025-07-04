@@ -10,7 +10,6 @@ from typing import Dict, Any, Optional, List
 
 from .worker import ProcessWorker
 from .monitor import ProcessMonitor
-from .supervisor import ProcessSupervisor
 
 class ProcessManager:
     """Manages process lifecycle and status."""
@@ -21,7 +20,7 @@ class ProcessManager:
         self.logger = logging.getLogger(__name__)
         self.processes: Dict[str, ProcessWorker] = {}
         self.monitor = ProcessMonitor(self)
-        self.supervisor = ProcessSupervisor(self)
+        self.monitor.start_monitoring()
         self.load_programs()
         self.start_all_autostart()
         
@@ -34,6 +33,15 @@ class ProcessManager:
         for name, config in programs.items():
             self.processes[name] = ProcessWorker(name, config, self)
 
+    def should_autorestart(self, program_name: str) -> bool:
+        """Check if a program should be auto-restarted."""
+        if not self.program_exists(program_name):
+            self.logger.error(f"Program '{program_name}' not found")
+            return False
+
+        worker = self.processes[program_name]
+        return worker.should_autorestart()
+    
     def program_exists(self, program_name: str) -> bool:
         """Check if a program exists in configuration."""
         return program_name in self.processes
@@ -124,13 +132,13 @@ class ProcessManager:
     #             if config.get('autostart', False):
     #                 self.processes[name].start()
 
-    def handle_program_exit(self, program_name: str, exit_code: int):
-        """Handle program exit event."""
-        if not self.program_exists(program_name):
-            return
+    # def handle_program_exit(self, program_name: str, exit_code: int):
+    #     """Handle program exit event."""
+    #     if not self.program_exists(program_name):
+    #         return
 
-        worker = self.processes[program_name]
-        self.supervisor.handle_exit(worker, exit_code)
+    #     worker = self.processes[program_name]
+    #     self.supervisor.handle_exit(worker, exit_code)
 
     def check_health(self):
         """Check health of all programs."""

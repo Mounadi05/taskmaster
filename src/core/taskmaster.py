@@ -132,6 +132,7 @@ class TaskmasterUI:
             # Group programs by status for better organization
             running_programs = []
             stopped_programs = []
+            exited_programs = []
             other_programs = []
 
             for name, info in programs.items():
@@ -140,6 +141,8 @@ class TaskmasterUI:
                     running_programs.append(name)
                 elif status == 'stopped':
                     stopped_programs.append(name)
+                elif status == 'exited':
+                    exited_programs.append(name)
                 else:
                     other_programs.append(name)
 
@@ -152,7 +155,10 @@ class TaskmasterUI:
                 self.body_walker.append(urwid.Text(('warning', "  Stopped:")))
                 for name in sorted(stopped_programs):
                     self.body_walker.append(urwid.Text(f"    {name}"))
-
+            if exited_programs:
+                self.body_walker.append(urwid.Text(('success', "  Exited:")))
+                for name in sorted(exited_programs):
+                    self.body_walker.append(urwid.Text(f"    {name}"))
             if other_programs:
                 self.body_walker.append(urwid.Text(('info', "  Other:")))
                 for name in sorted(other_programs):
@@ -503,16 +509,16 @@ class TaskmasterUI:
             self.footer.set_text(f"Error: Program '{program_name}' not found.")
             return False
         cmd = program.get('cmd', '')
-        if cmd:
-            if not os.path.exists(cmd):
-                self.footer.set_text(f"Error: Command '{cmd}' for program '{program_name}' does not exist.")
-                return False
-            if os.path.isdir(cmd):
-                self.footer.set_text(f"Error: Command '{cmd}' for program '{program_name}' is a directory, not a file.")
-                return False
-            if not os.access(cmd, os.X_OK):
-                self.footer.set_text(f"Error: Command '{cmd}' for program '{program_name}' is not executable.")
-                return False
+        # if cmd:
+        #     if not os.path.exists(cmd):
+        #         self.footer.set_text(f"Error: Command '{cmd}' for program '{program_name}' does not exist.")
+        #         return False
+        #     if os.path.isdir(cmd):
+        #         self.footer.set_text(f"Error: Command '{cmd}' for program '{program_name}' is a directory, not a file.")
+        #         return False
+        #     if not os.access(cmd, os.X_OK):
+        #         self.footer.set_text(f"Error: Command '{cmd}' for program '{program_name}' is not executable.")
+        #         return False
         return True
    
     def reload_config(self):
@@ -559,7 +565,7 @@ class TaskmasterUI:
             urwid.Text(f"Start Retries: {data[program_name]['config'].get('startretries', 'N/A')}"),
             urwid.Text(f"Start Time: {data[program_name]['config'].get('startsecs', 'N/A')} seconds"),
             urwid.Text(f"Stop Signal: {data[program_name]['config'].get('stopsignal', 'N/A')}"),
-            urwid.Text(f"Stop Time: {data[program_name]['config'].get('stoptime', 'N/A')} seconds"),
+            urwid.Text(f"Stop Time: {data[program_name]['config'].get('stoptsecs', 'N/A')} seconds"),
             urwid.Divider(),
         ]
 

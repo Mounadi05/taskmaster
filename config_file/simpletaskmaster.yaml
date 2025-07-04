@@ -43,7 +43,7 @@ programs:
 #     startretries: 3
 #     startsecs: 1
 #     stopsignal: TERM
-#     stoptime: 5
+#     stoptsecs: 5
 #     on_failure:
 #       smtp:
 #         enabled: true
@@ -78,12 +78,12 @@ programs:
 #     startretries: 2
 #     startsecs: 1
 #     stopsignal: TERM
-#     stoptime: 3
+#     stoptsecs: 3
 
   scan_network:
     cmd: "/usr/bin/nmap 192.168.1.1"
     autostart: true
-    autorestart: never
+    autorestart: always
     user: "kali"
     group: "kali"
     priority: 10
@@ -108,7 +108,7 @@ programs:
     startretries: 3
     startsecs: 1
     stopsignal: TERM
-    stoptime: 5
+    stoptsecs: 5
 
   writer:
     cmd: "python3 /home/kali/testing/test.py"

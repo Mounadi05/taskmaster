@@ -119,7 +119,7 @@ startretries: 5  # Try starting up to 5 times
 
 ---
 
-### starttime (attribute)
+### startsecs (attribute)
 Minimum time (in seconds) the process must stay running to be considered successfully started.
 
 #### Allowed values:
@@ -129,7 +129,7 @@ Minimum time (in seconds) the process must stay running to be considered success
 
 #### Example:
 ```yaml
-starttime: 10  # Process must run for 10 seconds to be considered started
+startsecs: 10  # Process must run for 10 seconds to be considered started
 ```
 
 ---
@@ -149,7 +149,7 @@ stopsignal: TERM  # Send SIGTERM for graceful shutdown
 
 ---
 
-### stoptime (attribute)
+### stoptsecs (attribute)
 Maximum time (in seconds) to wait for the process to stop before sending SIGKILL.
 
 #### Allowed values:
@@ -159,7 +159,7 @@ Maximum time (in seconds) to wait for the process to stop before sending SIGKILL
 
 #### Example:
 ```yaml
-stoptime: 30  # Wait 30 seconds before force killing
+stoptsecs: 30  # Wait 30 seconds before force killing
 ```
 
 ---
@@ -207,9 +207,9 @@ programs:
     autorestart: unexpected
     exitcodes: [0]
     startretries: 3
-    starttime: 5
+    startsecs: 5
     stopsignal: TERM
-    stoptime: 15
+    stoptsecs: 15
     stdout:
       file: "/var/log/webapp.log"
       maxbytes: 50000000

@@ -8,7 +8,7 @@ import json
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from config import ConfigManager
-from process import ProcessManager, ProcessWorker, ProcessMonitor, ProcessSupervisor, ProcessCommands
+from process import ProcessManager, ProcessWorker, ProcessMonitor, ProcessCommands
 
 logging.basicConfig(
     filename='/tmp/taskamasterd.log',
@@ -140,7 +140,6 @@ class TaskmasterServer:
         self.running = False
         self.process_manager = ProcessManager(config_manager)
         self.process_monitor = ProcessMonitor(self.process_manager)
-        self.process_supervisor = ProcessSupervisor(self.process_manager)
         self.process_commands = ProcessCommands(self.process_manager)
         # print("testing get status programs")
         # print(self.process_manager.config_manager.get_all_program_configs())

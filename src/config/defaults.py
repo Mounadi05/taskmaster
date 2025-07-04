@@ -85,7 +85,7 @@ PROGRAM_DEFAULTS = {
         'choices': get_supported_signals(),
         'help': 'Signal to use to kill the program'
     },
-    'stoptime': {
+    'stoptsecs': {
         'default': 10,
         'type': int,
         'min': 0,

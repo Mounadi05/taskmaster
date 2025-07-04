@@ -29,6 +29,7 @@ class ProcessWorker:
         self.exit_code: Optional[int] = None
         self.pid: Optional[int] = None
 
+
     def start(self) -> bool:
         print("---------------------- Start the process. ----------------------")
         print(f"Starting process {self.name} with command: {self.config['cmd']}")
@@ -101,7 +102,7 @@ class ProcessWorker:
         try:
             # Get stop signal from config
             stop_signal = getattr(signal, f"SIG{self.config.get('stopsignal', 'TERM')}")
-            stop_time = self.config.get('stoptime', 10)
+            stop_time = self.config.get('stoptsecs', 10)
 
             # Send stop signal
             os.kill(self.pid, stop_signal)
@@ -142,15 +143,21 @@ class ProcessWorker:
         return success
 
     def is_running(self) -> bool:
-        """Check if process is running."""
         if self.process is None or self.pid is None:
             return False
 
         try:
-            # Check if process exists
             os.kill(self.pid, 0)
             
-            # Update status if process exists
+            if self.process.poll() is not None:
+                # Process has finished, collect exit status
+                self.exit_code = self.process.returncode
+                print(f"Process {self.name} with PID {self.pid} has exited with code {self.exit_code}")
+                self.status = "exited"
+                self.stop_time = datetime.now()
+                self.manager.monitor.handle_process_death(self)
+                return False
+                
             if self.status == "starting" and self.start_time:
                 start_duration = (datetime.now() - self.start_time).total_seconds()
                 if start_duration >= self.config.get('startsecs', 1):
@@ -158,7 +165,8 @@ class ProcessWorker:
             
             return True
         except OSError:
-            self.status = "stopped"
+            if self.status != "exited":
+                self.status = "stopped"
             return False
 
     def get_status(self) -> Dict[str, Any]:
@@ -177,7 +185,7 @@ class ProcessWorker:
                 "autorestart": self.config.get('autorestart', 'unexpected'),
                 "startsecs": self.config.get('startsecs', 1),
                 "stopsignal": self.config.get('stopsignal', 'TERM'),
-                "stoptime": self.config.get('stoptime', 10),
+                "stoptsecs": self.config.get('stoptsecs', 10),
                 "exitcodes": self.config.get('exitcodes', [0]),
                 "startretries": self.config.get('startretries', 3),
                 "user": self.config.get('user'),
@@ -248,3 +256,18 @@ class ProcessWorker:
             return f"{minutes}m {seconds}s"
         else:
             return f"{seconds}s"
+    
+    def should_autorestart(self) -> bool:
+        """Check if the process should be auto-restarted."""
+        if self.status in ["stopped", "stopping", "exited", "killed"]:
+            return False
+        
+        autorestart = self.config.get('autorestart', 'unexpected')
+        exitcodes = self.config.get('exitcodes', [0])
+        
+        if autorestart == 'always':
+            return True
+        elif autorestart == 'unexpected' and self.exit_code not in exitcodes:
+            return True
+        
+        return False

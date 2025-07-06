@@ -44,7 +44,7 @@ PROGRAM_DEFAULTS = {
         'help': 'Directory to change to before executing'
     },
     'autostart': {
-        'default': False,
+        'default': True,
         'type': bool,
         'help': 'Start automatically when taskmaster starts'
     },

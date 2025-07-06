@@ -20,16 +20,40 @@ class TaskmasterUI:
         self.process_manager = process_manager
         self.daemon = daemon
         self.logger = logging.getLogger(__name__)
-        self.use_mock_data = process_manager is None
         self.method = None
         self.port = None
         self.host = None
         self.client = None
         self.programs = {}
+        self.setup()
+        self.deamon_isAlive()
         self.reload_config()
         self.setup_ui()
        
 
+
+
+    def setup(self):
+        Config = ConfigManager(filepath='config_file/simpletaskmaster.yaml')
+        server_config = Config.get_server_config()
+        self.method = server_config.get('type', 'socket')
+        self.port = server_config.get('port', 1337)
+        self.host = server_config.get('host', 'localhost')
+        self.client = Taskmasterctl(self.method, self.port, self.host)
+
+    def deamon_isAlive(self):
+        try:
+            response = self.client.send_command('alive')
+            if response and response['status'] == 'success':
+                pass
+            else:
+                print("Taskmaster daemon is not running or reachable. Please start the daemon first.")
+                sys.exit(1)
+        except Exception as e:
+            print(f"Error connecting to Taskmaster daemon: {e}")
+            sys.exit(1)
+        
+        
     def get_programs(self):
         response = self.client.send_command('status')
         return response['data']
@@ -522,12 +546,7 @@ class TaskmasterUI:
         return True
    
     def reload_config(self):
-        Config = ConfigManager(filepath='config_file/simpletaskmaster.yaml')
-        server_config = Config.get_server_config()
-        self.method = server_config.get('type', 'socket')
-        self.port = server_config.get('port', 1337)
-        self.host = server_config.get('host', 'localhost')
-        self.client = Taskmasterctl(self.method, self.port, self.host)
+        
         self.programs = self.get_programs()
     
     def check_status(self, program_name):

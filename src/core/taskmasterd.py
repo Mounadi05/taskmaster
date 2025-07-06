@@ -237,9 +237,10 @@ def daemonize():
         os.dup2(dev_null_w.fileno(), sys.stdout.fileno())
         os.dup2(dev_null_w.fileno(), sys.stderr.fileno())
 
-def signal_handler(signum, frame):
+def signal_handler():
     """Handle termination signals"""
-    print(f"\nReceived signal {signum}, shutting down...")
+    if os.path.exists('/tmp/Taskmasterd.pid'):
+        os.rmdir('/tmp/Taskmasterd.pid')
     sys.exit(0)
 
 
@@ -260,7 +261,13 @@ def process_command(command, args, server_instance=None):
                 process_command.process_commands = ProcessCommands(ProcessManager(None))
 
         response = None
-        if command == 'start':
+        if command == 'alive':
+            response = {
+                "status": "success",
+                "message": "Taskmaster server is alive",
+                "timestamp": datetime.now().isoformat()
+            }
+        elif command == 'start':
             response = process_command.process_commands.start(args[0] if args else None)
         elif command == 'stop':
             response = process_command.process_commands.stop(args[0] if args else None)
@@ -286,20 +293,34 @@ def process_command(command, args, server_instance=None):
 def main():
     """Main function"""
     parser = argparse.ArgumentParser(description='Taskmaster Server')
-    parser.add_argument('-d', '--daemon', action='store_true',
-                        help='Run as daemon')
+    parser.add_argument('-n', '--no-daemon', action='store_false', dest='daemon', default=True,
+                        help='Run in the foreground (default: run as daemon)')
     
     args = parser.parse_args()
     # Set up signal handlers
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
-   
-    if args.daemon:
-        print(f"Starting server as daemon (type: {args.type})")
+
+
+
+    if os.path.exists('/tmp/Taskmasterd.pid'):
+        with open('/tmp/Taskmasterd.pid', 'r') as f:
+            pid = int(f.read().strip())
+        try:
+            if os.getpgid(pid) >= 0:
+                print(f"Taskmaster daemon is already running with PID {pid}...")
+            sys.exit(1)
+        except OSError:
+            pass
+      
+    if args.daemon == False:
+        print("Running in foreground mode")
+    else:
+        print("Running in daemon mode")
         daemonize()
         
-        with open('/tmp/Taskmasterd.pid', 'w') as f:
-            f.write(str(os.getpid()))
+    with open('/tmp/Taskmasterd.pid', 'w') as f:
+        f.write(str(os.getpid()))
     Config = ConfigManager("config_file/simpletaskmaster.yaml")
     server_config = Config.get_server_config()
     args.type = server_config.get('type', 'socket')

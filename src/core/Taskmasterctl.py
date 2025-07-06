@@ -23,11 +23,9 @@ class TaskmasterClient:
                 result = response.json()
                 return result
             else:
-                print(f"HTTP Error: {response.status_code} - {response.text}")
                 return False
                 
         except requests.RequestException as e:
-            print(f"HTTP connection error: {e}")
             return False
     
     def send_socket_command(self, command):
@@ -50,8 +48,6 @@ class TaskmasterClient:
             return False
     
     def send_command(self, command):
-        """Send command using specified method"""
-        print(f"Sending command: {command}")
         if self.method == 'http':
             return self.send_http_command(command)
         elif self.method == 'socket':

@@ -31,8 +31,35 @@ class ProcessWorker:
         self.status = "stopped"
         self.exit_code: Optional[int] = None
         self.pid: Optional[int] = None
+        self.retry_count = 0
+        self.stop_byuser = False
         self.smtp_notifier = SMTPNotifier(self.manager.get_smtp_config()) if self.manager.get_smtp_config() else None
 
+
+    def get_exit_code(self) -> Optional[int]:
+        """Get the exit code of the process."""
+        if self.process is not None:
+            return self.process.returncode
+        return None
+    
+    def increment_retry_count(self, count: int = 1) -> None:
+        self.retry_count += count
+
+    def get_retry_count(self) -> int:
+        return self.retry_count
+    
+    def get_expected_exit_codes(self) -> List[int]:
+        return self.config.get('exitcodes', [0])
+    
+    def get_startretries(self) -> int:
+        return self.config.get('startretries', 3)
+    
+    def get_status_procces(self) -> str:
+        """Get the current status of the process."""
+        if self.process is None:
+            return "stopped"
+        return self.status
+    
     def handle_notification(self, event_type: str,action,error_msg) -> None:
         if event_type == 'failure' and self.config.get('on_failure', {}).get('smtp', {}).get('enabled'):
             print(f"Sending failure notification for process {self.name}")
@@ -49,11 +76,12 @@ class ProcessWorker:
             self.smtp_notifier.send_notification(self.name, action,
                 from_addr=config.get('from'),
                 to_addrs=config.get('to', []),
-                is_success=False,
+                is_success=True,
                 error_message=error_msg
             )
 
     def start(self,restart=False) -> bool:
+        self.stop_byuser = False
         if self.is_running():
             self.logger.warning(f"Process {self.name} is already running")
             return False
@@ -64,6 +92,7 @@ class ProcessWorker:
 
             uid = None
             gid = None
+            self.retry_count += 1
             if 'user' in self.config:
                 try:
                     pw = pwd.getpwnam(self.config['user'])
@@ -98,13 +127,11 @@ class ProcessWorker:
                 cwd=self.config.get('workingdir'),
                 preexec_fn=lambda: self._preexec(uid, gid)
             )
-
             self.status = "starting"
             self.pid = self.process.pid
             self.start_time = datetime.now()
-            self.exit_code = None
 
-            self.logger.info(f"Started process {self.name} with PID {self.pid}")
+            self.logger.info(f"spawned  process {self.name} with PID {self.pid }")
             if restart:
                 self.handle_notification('success', 'restart', None)
             else:
@@ -112,7 +139,7 @@ class ProcessWorker:
             return True
 
         except Exception as e:
-            self.logger.error(f"Error starting process {self.name}: {e}")
+            self.logger.error(f"Error spawne process {self.name}: {e}")
             if restart:
                 self.handle_notification('failure', 'restart', str(e))
             else:
@@ -124,7 +151,7 @@ class ProcessWorker:
 
     def stop(self) -> bool:
         """Stop the process."""
-
+        self.stop_byuser = True
         if not self.is_running():
             return True
 
@@ -135,7 +162,8 @@ class ProcessWorker:
 
             os.kill(self.pid, stop_signal)
             self.status = "stopping"
-            
+
+            self.handle_notification('success', 'stop', None)
             # Wait for process to stop
             try:
                 print(f"Waiting for process {self.name} to stop... )")
@@ -146,6 +174,7 @@ class ProcessWorker:
             except subprocess.TimeoutExpired:
                 # Force kill if timeout
                 print(f"Process {self.name} did not stop in time, force killing with SIGKILL")
+                self.handle_notification('failure', 'stop', f"Process {self.name} did not stop in time, force killing")
                 os.kill(self.pid, signal.SIGKILL)
                 self.process.wait()
                 self.status = "stopped"
@@ -158,6 +187,7 @@ class ProcessWorker:
             self.stop_time = datetime.now()
             return True
         except Exception as e:
+            self.handle_notification('failure', 'stop', str(e))
             print(f"Error stopping process {self.name}: {e}")
             self.logger.error(f"Error stopping process {self.name}: {e}")
             return False
@@ -171,26 +201,24 @@ class ProcessWorker:
     def is_running(self) -> bool:
         if self.process is None or self.pid is None:
             return False
-
         try:
-            os.kill(self.pid, 0)
-            
+            start_duration = (datetime.now() - self.start_time).total_seconds()
             if self.process.poll() is not None:
                 # Process has finished, collect exit status
                 self.exit_code = self.process.returncode
-                print(f"Process {self.name} with PID {self.pid} has exited with code {self.exit_code}")
-                self.status = "exited"
+                if self.status != "fatal" and start_duration < self.config.get('startsecs', 1):
+                    self.status = "fatal"
+                if self.status != "fatal":
+                    self.status = "exited" 
                 self.stop_time = datetime.now()
                 return False
-                
+
             if self.status == "starting" and self.start_time:
-                start_duration = (datetime.now() - self.start_time).total_seconds()
                 if start_duration >= self.config.get('startsecs', 1):
                     self.status = "running"
-            
             return True
         except OSError:
-            if self.status != "exited":
+            if self.status != "exited" or self.status != "fatal":
                 self.status = "stopped"
             return False
 
@@ -283,14 +311,16 @@ class ProcessWorker:
             return f"{seconds}s"
         
     def should_autorestart(self) -> bool:
-                
+        if self.stop_byuser:
+            return False
         autorestart = self.config.get('autorestart', 'unexpected')
         exitcodes = self.config.get('exitcodes', [0])
         
         if autorestart == 'always':
-            print(f"Process {self.name} should always restart.")
-            self.restart()
+            return True
         elif autorestart == 'unexpected' and self.exit_code not in exitcodes:
+            return True
+        elif self.retry_count < self.get_startretries() and self.status == "fatal":
             return True
         
         return False

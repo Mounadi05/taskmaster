@@ -17,15 +17,13 @@ class ConfigManager:
         self.parser = ConfigParser(filepath)
         self.validator = ConfigValidator()
         self.config: Dict[str, Any] = {}
-        self.config_file = filepath
-        print(f"Loading configuration from {filepath}")
-        
+        self.config_file = filepath        
         # Parse the configuration file
         success, result = self.parser.parse_file()
         if success:
             self.config = result
         else:
-            print(f"Error loading configuration: {result.get('error', 'Unknown error')}")
+            pass
             
         self.programs = self.parser.get_programs()
         self.server = self.parser.get_server()

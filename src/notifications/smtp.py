@@ -64,7 +64,7 @@ The operation has completed successfully:
 Program: {program_name}
 Action: {action.capitalize()}
 Status: SUCCESS
-Timestamp: {{timestamp}}
+Time: {{timestamp}}
 
 The {program_name} service has been {action}ed successfully.
 
@@ -87,7 +87,7 @@ Program: {program_name}
 Action: {action.capitalize()}
 Status: FAILED
 Error: {error_message}
-Timestamp: {{timestamp}}
+Time: {{timestamp}}
 
 Please check the system logs for more details.
 

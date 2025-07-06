@@ -28,13 +28,20 @@ class ProcessMonitor:
             self.check_process(worker)
 
     def check_process(self, worker):
-        """Check health of a single process."""
         if not worker.is_running():
-            if worker.should_autorestart():
+        
+            if self.should_restart(worker):
+                self.logger.info(f"Restarting process {worker.name}")
                 worker.start()
+            
+
+    def should_restart(self, worker):
+        if not worker.should_autorestart():
+            return False
+        return True
 
     def monitor_loop(self):
         """Main monitoring loop."""
         while self.running:
             self.check_all()
-            time.sleep(2)
+            time.sleep(1)

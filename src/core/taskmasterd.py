@@ -8,7 +8,8 @@ import json
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from config import ConfigManager
-from process import ProcessManager, ProcessWorker, ProcessMonitor, ProcessCommands
+from process import ProcessManager, ProcessMonitor, ProcessCommands
+from notifications import SMTPNotifier
 
 logging.basicConfig(
     filename='/tmp/taskamasterd.log',
@@ -132,17 +133,15 @@ class SocketServer:
 class TaskmasterServer:
     """Main Taskmaster server that handles both HTTP and Socket connections"""
     
-    def __init__(self, port, server_type='socket', config_manager=None):
+    def __init__(self, port, server_type='socket', config_manager=None,smtp_config=None):
         self.port = port
         self.server_type = server_type  # 'http', 'socket'
         self.http_server = None
         self.socket_server = None
         self.running = False
-        self.process_manager = ProcessManager(config_manager)
-        self.process_monitor = ProcessMonitor(self.process_manager)
+        self.process_manager = ProcessManager(config_manager, smtp_config=smtp_config)
+        self.smtp_notifier = SMTPNotifier(smtp_config)
         self.process_commands = ProcessCommands(self.process_manager)
-        # print("testing get status programs")
-        # print(self.process_manager.config_manager.get_all_program_configs())
     
     def start(self):
         """Start HTTP and/or Socket servers based on server_type"""
@@ -306,8 +305,9 @@ def main():
     args.type = server_config.get('type', 'socket')
     args.port = server_config.get('port', 1337)
     args.host = server_config.get('host', 'localhost')
+    smtp_config = Config.get_smtp_config()
 
-    server = TaskmasterServer(port=args.port, server_type=args.type, config_manager=Config)
+    server = TaskmasterServer(port=args.port, server_type=args.type, config_manager=Config,smtp_config=smtp_config)
     server.start()
 
 

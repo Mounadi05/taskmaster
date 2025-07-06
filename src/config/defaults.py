@@ -146,11 +146,6 @@ SERVER_DEFAULTS = {
 
 # SMTP notification defaults
 SMTP_DEFAULTS = {
-    'enabled': {
-        'default': False,
-        'type': bool,
-        'help': 'Enable SMTP notifications'
-    },
     'server': {
         'default': 'localhost',
         'type': str,

@@ -12,6 +12,10 @@ import subprocess
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+from notifications import SMTPNotifier
+
 class ProcessWorker:
     """Handles individual process lifecycle."""
 
@@ -20,7 +24,6 @@ class ProcessWorker:
         self.config = config
         self.manager = manager
         self.logger = logging.getLogger(f"worker.{name}")
-        
         self.process: Optional[subprocess.Popen] = None
         self.start_time: Optional[datetime] = None
         self.stop_time: Optional[datetime] = None
@@ -28,9 +31,29 @@ class ProcessWorker:
         self.status = "stopped"
         self.exit_code: Optional[int] = None
         self.pid: Optional[int] = None
+        self.smtp_notifier = SMTPNotifier(self.manager.get_smtp_config()) if self.manager.get_smtp_config() else None
 
+    def handle_notification(self, event_type: str,action,error_msg) -> None:
+        if event_type == 'failure' and self.config.get('on_failure', {}).get('smtp', {}).get('enabled'):
+            print(f"Sending failure notification for process {self.name}")
+            config = self.config['on_failure']['smtp']
+            self.smtp_notifier.send_notification(self.name, action,
+                from_addr=config.get('from'),
+                to_addrs=config.get('to', []),
+                is_success=False,
+                error_message=error_msg
+            )
+        elif event_type == 'success' and self.config.get('on_success', {}).get('smtp', {}).get('enabled'):
+            print(f"Sending success notification for process {self.name}")
+            config = self.config['on_success']['smtp']
+            self.smtp_notifier.send_notification(self.name, action,
+                from_addr=config.get('from'),
+                to_addrs=config.get('to', []),
+                is_success=False,
+                error_message=error_msg
+            )
 
-    def start(self) -> bool:
+    def start(self,restart=False) -> bool:
         if self.is_running():
             self.logger.warning(f"Process {self.name} is already running")
             return False
@@ -82,11 +105,19 @@ class ProcessWorker:
             self.exit_code = None
 
             self.logger.info(f"Started process {self.name} with PID {self.pid}")
+            if restart:
+                self.handle_notification('success', 'restart', None)
+            else:
+                self.handle_notification('success', 'start', None)
             return True
 
         except Exception as e:
             self.logger.error(f"Error starting process {self.name}: {e}")
-            self.status = "error"
+            if restart:
+                self.handle_notification('failure', 'restart', str(e))
+            else:
+                self.handle_notification('failure', 'start', str(e))
+            self.status = "fatal"
             return False
 
       
@@ -132,7 +163,7 @@ class ProcessWorker:
             return False
 
     def restart(self) -> bool:
-        success = self.start()
+        success = self.start('restart')
         if success:
             self.restart_count += 1
         return success

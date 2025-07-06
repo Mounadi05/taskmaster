@@ -14,9 +14,10 @@ from .monitor import ProcessMonitor
 class ProcessManager:
     """Manages process lifecycle and status."""
 
-    def __init__(self, config_manager):
+    def __init__(self, config_manager, smtp_config=None):
         """Initialize the process manager."""
         self.config_manager = config_manager
+        self.smtp_config = smtp_config
         self.logger = logging.getLogger(__name__)
         self.processes: Dict[str, ProcessWorker] = {}
         self.monitor = ProcessMonitor(self)
@@ -24,6 +25,12 @@ class ProcessManager:
         self.start_all_autostart()
         self.monitor.start_monitoring()
         
+    
+
+    def get_smtp_config(self) -> Dict[str, Any]:
+        """Get SMTP configuration for notifications."""
+        return self.smtp_config
+    
     def load_programs(self):
         """Load program configurations and initialize workers."""
         programs = self.config_manager.get_all_program_configs()

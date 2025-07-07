@@ -12,6 +12,7 @@ from process import ProcessManager, ProcessMonitor, ProcessCommands
 from notifications import SMTPNotifier
 
 old_pathfile = None
+current_server = None
 
 logging.basicConfig(
     filename='/tmp/taskamasterd.log',
@@ -199,6 +200,7 @@ class TaskmasterServer:
         if self.socket_server:
             self.socket_server.stop()
             print("Socket server stopped")
+    
 
 def daemonize(working_directory='/tmp'):
     """Daemonize the current process"""
@@ -240,7 +242,11 @@ def daemonize(working_directory='/tmp'):
         os.dup2(dev_null_w.fileno(), sys.stderr.fileno())
 
 def signal_handler():
-    """Handle termination signals"""
+    global current_server
+    
+    if current_server:
+        current_server.stop()
+    
     if os.path.exists('/tmp/Taskmasterd.pid'):
         os.rmdir('/tmp/Taskmasterd.pid')
     sys.exit(0)
@@ -296,8 +302,11 @@ def process_command(command, args, server_instance=None):
 
 
 def reload_config(config,reload=False):
-    global old_pathfile
+    global old_pathfile, current_server
     print(f"Reloading configuration...{old_pathfile}")
+    if current_server:
+        current_server.stop()
+        time.sleep(0.5)
     if reload and old_pathfile:
         config = old_pathfile
     Config = ConfigManager(config)

@@ -27,7 +27,7 @@ class ConfigManager:
             
         self.programs = self.parser.get_programs()
         self.server = self.parser.get_server()
-        print(f"Server configuration: {self.server}")
+        # print(f"Server configuration: {self.server}")
 
         
     def process_env_vars(self) -> None:

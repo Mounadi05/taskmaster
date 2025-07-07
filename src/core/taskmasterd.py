@@ -11,6 +11,8 @@ from config import ConfigManager
 from process import ProcessManager, ProcessMonitor, ProcessCommands
 from notifications import SMTPNotifier
 
+old_pathfile = None
+
 logging.basicConfig(
     filename='/tmp/taskamasterd.log',
     level=logging.INFO,
@@ -145,7 +147,7 @@ class TaskmasterServer:
     
     def start(self):
         """Start HTTP and/or Socket servers based on server_type"""
-        print(f"Server type: {self.server_type}")
+        logging.info(f"Starting Taskmaster server with type: {self.server_type}, port: {self.port}")
         
         self.running = True
         
@@ -198,7 +200,7 @@ class TaskmasterServer:
             self.socket_server.stop()
             print("Socket server stopped")
 
-def daemonize():
+def daemonize(working_directory='/tmp'):
     """Daemonize the current process"""
     try:
         # First fork
@@ -211,7 +213,7 @@ def daemonize():
         sys.exit(1)
     
     # Decouple from parent environment
-    os.chdir("/")
+    os.chdir(working_directory)
     os.setsid()
     os.umask(0)
     
@@ -278,6 +280,8 @@ def process_command(command, args, server_instance=None):
         elif command == 'detail':
             if args:
                 response = process_command.process_commands.status(args[0])
+        elif command == 'reload':
+            response = reload_config(None, reload=True)
         else:
             response = {
                 "status": "error",
@@ -290,12 +294,31 @@ def process_command(command, args, server_instance=None):
         
         return response    
 
+
+def reload_config(config,reload=False):
+    global old_pathfile
+    print(f"Reloading configuration...{old_pathfile}")
+    if reload and old_pathfile:
+        config = old_pathfile
+    Config = ConfigManager(config)
+    server_config = Config.get_server_config()
+    type = server_config.get('type', 'socket')
+    port = server_config.get('port', 1337)
+    host = server_config.get('host', 'localhost')
+    smtp_config = Config.get_smtp_config()
+
+    server = TaskmasterServer(port=port, server_type=type, config_manager=Config,smtp_config=smtp_config)
+    server.start()
+
 def main():
+    global old_pathfile
     """Main function"""
     parser = argparse.ArgumentParser(description='Taskmaster Server')
     parser.add_argument('-n', '--no-daemon', action='store_false', dest='daemon', default=True,
                         help='Run in the foreground (default: run as daemon)')
-    
+    parser.add_argument('-c', '--config', type=str, default='config_file/taskmaster.yaml',
+                        help='Path to the configuration file')
+
     args = parser.parse_args()
     # Set up signal handlers
     signal.signal(signal.SIGTERM, signal_handler)
@@ -312,26 +335,32 @@ def main():
             sys.exit(1)
         except OSError:
             pass
-      
+    work_dir = os.getcwd()
     if args.daemon == False:
         print("Running in foreground mode")
     else:
         print("Running in daemon mode")
-        daemonize()
+        daemonize(working_directory=work_dir)
         
     with open('/tmp/Taskmasterd.pid', 'w') as f:
         f.write(str(os.getpid()))
-    Config = ConfigManager("config_file/simpletaskmaster.yaml")
-    server_config = Config.get_server_config()
-    args.type = server_config.get('type', 'socket')
-    args.port = server_config.get('port', 1337)
-    args.host = server_config.get('host', 'localhost')
-    smtp_config = Config.get_smtp_config()
+    
+    if args.config:
+        old_pathfile = args.config
+    else:
+        old_pathfile = 'config_file/taskmaster.yaml'
 
-    server = TaskmasterServer(port=args.port, server_type=args.type, config_manager=Config,smtp_config=smtp_config)
-    server.start()
+    reload_config(args.config)
 
+    # Config = ConfigManager(args.config)
+    # server_config = Config.get_server_config()
+    # type = server_config.get('type', 'socket')
+    # port = server_config.get('port', 1337)
+    # host = server_config.get('host', 'localhost')
+    # smtp_config = Config.get_smtp_config()
 
+    # server = TaskmasterServer(port=port, server_type=type, config_manager=Config,smtp_config=smtp_config)
+    # server.start()
 
 if __name__ == "__main__":
     main()

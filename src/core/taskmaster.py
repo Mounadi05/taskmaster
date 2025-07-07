@@ -5,7 +5,7 @@ Taskmaster Control Shell
 Interactive urwid-based control interface
 """
 
-import urwid, random, logging, sys, os
+import urwid, random, sys, os,argparse, time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from core import Taskmasterctl
 from config import ConfigManager
@@ -15,35 +15,42 @@ selected_program = None
 command_history = []
 command_input = ""
 
+old_pathfile = None 
+
 class TaskmasterUI:
-    def __init__(self, process_manager=None, daemon=None):
+    def __init__(self, process_manager=None, daemon=None, filepath='config_file/taskmaster.yaml'):
         self.process_manager = process_manager
         self.daemon = daemon
-        self.logger = logging.getLogger(__name__)
         self.method = None
         self.port = None
         self.host = None
         self.client = None
         self.programs = {}
+        self.filepath = filepath
         self.setup()
-        self.deamon_isAlive()
-        self.reload_config()
-        self.setup_ui()
-       
 
 
 
-    def setup(self):
-        Config = ConfigManager(filepath='config_file/simpletaskmaster.yaml')
+    def setup(self, reload=False):
+        if reload and old_pathfile:
+            self.filepath = old_pathfile
+        Config = ConfigManager(self.filepath)
         server_config = Config.get_server_config()
         self.method = server_config.get('type', 'socket')
         self.port = server_config.get('port', 1337)
         self.host = server_config.get('host', 'localhost')
         self.client = Taskmasterctl(self.method, self.port, self.host)
+        self.deamon_isAlive()
+        if not self.client:
+            print("Error: Unable to connect to Taskmaster daemon. Please check your configuration.")
+            sys.exit(1)
+        self.programs = self.get_programs()
+        self.setup_ui()
 
     def deamon_isAlive(self):
         try:
             response = self.client.send_command('alive')
+            print(response)
             if response and response['status'] == 'success':
                 pass
             else:
@@ -449,7 +456,16 @@ class TaskmasterUI:
             'starting': 'info'
         }
         return colors.get(status, 'normal')
-
+    
+    def get_pid(self):
+        pid_file = '/tmp/Taskmasterd.pid'
+        if os.path.exists(pid_file):
+            with open(pid_file, 'r') as f:
+                pid = f.read().strip()
+                if pid.isdigit():
+                    return int(pid)
+        return None
+    
     def handle_command(self, command):
         global current_view, selected_program
 
@@ -470,7 +486,7 @@ class TaskmasterUI:
             self.refresh_view()
         elif cmd == "help":
             if args:
-                # Show detailed help for specific command
+                # Show detailed help for specific commandaa
                 self.show_command_help(args[0])
             else:
                 # Show general help view
@@ -520,8 +536,17 @@ class TaskmasterUI:
                         self.footer.set_text(f"\nstart command sent: program '{args[0]}' was not running, so it was started.")
                     else:
                         self.footer.set_text(f"\nRestart command sent: {message['message']}")
-
+        elif cmd == "pid":
+            pid = self.get_pid()
+            if pid:
+                self.footer.set_text(f"Taskmaster daemon PID: {pid}")
+            else:
+                self.footer.set_text("Taskmaster daemon is not running or PID file not found.")
+        elif cmd == "version":
+            self.footer.set_text("Taskmaster Version: 1.1.1")
         elif cmd == "reload":
+            self.client.send_command('reload')
+            time.sleep(1) 
             self.reload_config()
         else:
             self.footer.set_text(f"Unknown command: {command}. Type 'help' for available commands")
@@ -546,8 +571,8 @@ class TaskmasterUI:
         return True
    
     def reload_config(self):
-        
-        self.programs = self.get_programs()
+               
+        self.setup('true')
     
     def check_status(self, program_name):
         if program_name in self.programs:
@@ -688,14 +713,13 @@ class TaskmasterControlShell:
     def __init__(self, process_manager=None, daemon=None):
         self.process_manager = process_manager
         self.daemon = daemon
-        self.logger = logging.getLogger(__name__)
 
     def run(self):
         """Run the control shell"""
         global ui
 
         # Initialize UI
-        ui = TaskmasterUI(self.process_manager, self.daemon)
+        ui = TaskmasterUI(self.process_manager, self.daemon,ui.file_path)
 
         # Set initial focus to command input
         ui.main_frame.focus_position = 'footer'
@@ -707,20 +731,30 @@ class TaskmasterControlShell:
         try:
             loop.run()
         except KeyboardInterrupt:
-            self.logger.info("Control shell interrupted by user")
+            pass
         except Exception as e:
-            self.logger.error(f"Control shell error: {e}")
+            pass
             raise
 
 
 if __name__ == "__main__":
     # Initialize UI with mock data
-    ui = TaskmasterUI()
+    
+    parser = argparse.ArgumentParser(description='Taskmaster Server')
+    parser.add_argument('-c', '--config', type=str, default='config_file/taskmaster.yaml',
+                        help='Path to the configuration file')
+    args = parser.parse_args()
+    if args.config:
+        old_pathfile = args.config
+    else:
+        old_pathfile = 'config_file/taskmaster.yaml'
+
+    ui = TaskmasterUI(filepath=args.config)
 
     # Set initial focus to command input
     ui.main_frame.focus_position = 'footer'
     ui.footer_pile.focus_position = 1
-
+    
     # Run the application
     loop = urwid.MainLoop(ui.main_frame, palette, unhandled_input=on_input)
     loop.run()

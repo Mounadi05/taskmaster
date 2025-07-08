@@ -24,8 +24,8 @@ webui:
   port: 8080
   auth:
     enabled: true
-    username: "mounadi05"
-    password: "ytaya07" 
+    username: "admin"
+    password: "admin" 
 
 # Programs configuration section
 #   pro1:

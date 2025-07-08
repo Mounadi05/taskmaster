@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taskmaster Dashboard</title>
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="header-content">
+                <h1 class="dashboard-title">
+                    <span class="title-icon">TM</span>
+                    Taskmaster Dashboard
+                </h1>
+                <div class="header-controls">
+                    <div class="connection-status" id="connectionStatus">
+                        <span class="status-indicator"></span>
+                        <span class="status-text">Connecting...</span>
+                    </div>
+                    <button class="refresh-btn" id="refreshBtn" title="Refresh Status">
+                        <span class="refresh-icon">↻</span>
+                    </button>
+                    <div class="auto-refresh-toggle">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="autoRefreshToggle" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="toggle-label">Auto-refresh</span>
+                    </div>
+                    <button class="logout-btn" id="logoutBtn" title="Logout" style="display: none;">
+                        <span class="logout-icon">⏻</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="dashboard-main">
+            <!-- Summary Cards -->
+            <section class="summary-section">
+                <div class="summary-cards">
+                    <div class="summary-card running">
+                        <div class="card-icon">▶</div>
+                        <div class="card-content">
+                            <div class="card-number" id="runningCount">0</div>
+                            <div class="card-label">Running</div>
+                        </div>
+                    </div>
+                    <div class="summary-card stopped">
+                        <div class="card-icon">⏸</div>
+                        <div class="card-content">
+                            <div class="card-number" id="stoppedCount">0</div>
+                            <div class="card-label">Stopped</div>
+                        </div>
+                    </div>
+                    <div class="summary-card error">
+                        <div class="card-icon">⚠</div>
+                        <div class="card-content">
+                            <div class="card-number" id="errorCount">0</div>
+                            <div class="card-label">Error</div>
+                        </div>
+                    </div>
+                    <div class="summary-card total">
+                        <div class="card-icon">∑</div>
+                        <div class="card-content">
+                            <div class="card-number" id="totalCount">0</div>
+                            <div class="card-label">Total</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Controls Section -->
+            <section class="controls-section">
+                <div class="bulk-controls">
+                    <div class="bulk-actions">
+                        <button class="bulk-btn" id="selectAllBtn">Select All</button>
+                        <button class="bulk-btn" id="deselectAllBtn">Deselect All</button>
+                        <div class="bulk-divider"></div>
+                        <button class="bulk-action-btn start" id="bulkStartBtn" disabled>
+                            <span class="btn-icon">▶</span> Start Selected
+                        </button>
+                        <button class="bulk-action-btn stop" id="bulkStopBtn" disabled>
+                            <span class="btn-icon">⏹</span> Stop Selected
+                        </button>
+                        <button class="bulk-action-btn restart" id="bulkRestartBtn" disabled>
+                            <span class="btn-icon">↻</span> Restart Selected
+                        </button>
+                    </div>
+                    <div class="view-controls">
+                        <button class="view-btn active" id="gridViewBtn" title="Grid View">
+                            <span class="view-icon">⊞</span> Grid
+                        </button>
+                        <button class="view-btn" id="listViewBtn" title="List View">
+                            <span class="view-icon">☰</span> List
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Processes Section -->
+            <section class="processes-section">
+                <div class="processes-container" id="processesContainer">
+                    <!-- Process cards will be dynamically generated here -->
+                </div>
+            </section>
+        </main>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading processes...</div>
+        </div>
+
+        <!-- Error Modal -->
+        <div class="modal-overlay" id="errorModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 class="modal-title">Error</h3>
+                    <button class="modal-close" id="errorModalClose">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p id="errorMessage">An error occurred.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" id="errorModalOk">OK</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Process Detail Modal -->
+        <div class="modal-overlay" id="detailModal">
+            <div class="modal modal-large">
+                <div class="modal-header">
+                    <h3 class="modal-title" id="detailModalTitle">Process Details</h3>
+                    <button class="modal-close" id="detailModalClose">&times;</button>
+                </div>
+                <div class="modal-body" id="detailModalBody">
+                    <!-- Process details will be populated here -->
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="detailModalClose2">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer">
+        <!-- Toast notifications will be dynamically added here -->
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>

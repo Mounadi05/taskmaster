@@ -6,29 +6,125 @@
 #     port: 1337     
 #     host: "localhost" 
 server:
-    type: "http"    // http or socket
-    port: 4242      
-    host: "localhost"  // Hostname or IP address    
+    type: "http"    # http or socket     
+    # host: "localhost"  # Hostname or IP address    
+    port: 5555     # Port number for the server
 
-# Programs configuration
+smtp:
+  server: smtp.gmail.com
+  port: 587
+  use_tls: true
+  username: "mounadi2015@gmail.com"
+  password: "vfhq aehm wkhb ajix"  
+
+webui:
+  enabled: true
+  host: "127.0.0.1"     
+  port: 8080 
+
+ 
+
 programs:
-  # Web server program
-  nginx:
-    cmd: "/usr/local/bin/nginx -c /etc/nginx/test.conf"
-    numprocs: 1
-    umask: 022
-    workingdir: /tmp
-    autostart: true
-    autorestart: unexpected
-    exitcodes:
-      - 0
-      - 2
-    startretries: 3
-    startsecs: 5
-    stopsignal: TERM
-    stoptsecs: 10
-    stdout: /tmp/nginx.stdout
-    stderr: /tmp/nginx.stderr
-    env:
-      STARTED_BY: taskmaster
-      ANSWER: 42  
+  # pro05:
+  #   cmd: "/home/kali/pro05.sh"
+  #   numprocs: 1
+  #   umask: "022"
+  #   user: "kali"
+  #   group: "kali"
+  #   priority: 10
+  #   workingdir: /home/kali
+  #   autostart: false
+  #   autorestart: unexpected
+  #   exitcodes: [0]
+  #   startretries: 1
+  #   startsecs: 2
+  #   stopsignal: TERM
+  #   stoptsecs: 5
+  #   on_failure:
+  #     smtp:
+  #       enabled: true
+  #       from: "mounadi2015@gmail.com"
+  #       to:
+  #         - "youssef1erretby10@gmail.com"
+  #   on_success:
+  #     smtp:
+  #       enabled: true
+  #       from: "mounadi2015@gmail.com"
+  #       to:
+  #         - "youssef1erretby10@gmail.com"
+  #   stdout: 
+  #     path : /tmp/pro1.stdout
+  #     maxbytes: 1024
+  #   stderr: /tmp/pro1.stderr
+  #   env:
+  #     TEST_VAR: "test_value"
+
+  # scan_network:
+  #   cmd: "/usr/bin/nmap 192.168.1.1"
+  #   autostart: false
+  #   user: "kali"
+  #   group: "kali"
+  #   priority: 10
+  #   workingdir: /home/kali/work
+  #   stdout: 
+  #     path : /tmp/www.stdout
+  #     maxbytes: 1024
+  #   on_success:
+  #     smtp:
+  #       enabled: true
+  #       from: "mounadi2015@gmail.com"
+  #       to:
+  #         - "youssef1erretby10@gmail.com"
+  #   startsecs: 5
+    
+
+  # pro6:
+  #   cmd: "/home/kali/pro6.sh"
+  #   numprocs: 4
+  #   umask: "022"
+  #   user: "kali"
+  #   group: "kali"
+  #   priority: 10
+  #   workingdir: /tmp
+  #   autostart: true
+  #   autorestart: never
+  #   exitcodes: [0]
+  #   startretries: 3
+  #   startsecs: 1
+  #   stopsignal: TERM
+  #   stoptsecs: 5
+
+  writer:
+    cmd: "python3  echo hello && sleep 10"
+    numprocs: 5
+    umask: "777"
+    user: "kali"
+    group: "kali"
+    priority: 10
+    workingdir: /home/kali/testing/
+    autorestart: never
+    exitcodes: [0]
+    startsecs: 0
+    startretries: 4
+    on_failure:
+      smtp:
+        enabled: true
+        from: "mounadi2015@gmail.com"
+        to:
+          - "mounadi05@icloud.com"
+
+  # test_signal:
+  #   cmd: "python3 /home/kali/work/test_signal.py"
+  #   numprocs: 10
+  #   umask: "022"
+  #   priority: 15
+  #   workingdir: /home/kali
+  #   autostart: true
+  #   stopsignal: USR1
+  #   stoptsecs: 2
+  #   stdout: 
+  #     path : /tmp/signal.stdout
+  #     maxbytes: 1024
+  #   stderr: /tmp/signal.stderr
+  
+

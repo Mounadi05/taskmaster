@@ -47,7 +47,6 @@ class ConfigValidator:
             self._validate_program_config(program_name, config)
     
     def validate_program_config(self, name: str, config: dict) -> None:
-        print("**000000000**********************")
         if not isinstance(config, dict):
             self.errors.append(f"Program '{name}' configuration must be a dictionary")
             return
@@ -56,7 +55,6 @@ class ConfigValidator:
             value = config.get(key, schema.get('default'))
             
             if 'validate' in schema and callable(schema['validate']):
-                print(f"[DEBUG] Running validator for {key}={value}")
                 if not schema['validate'](value):
                     self.errors.append(
                         f"Program '{name}' field '{key}' failed validation check"

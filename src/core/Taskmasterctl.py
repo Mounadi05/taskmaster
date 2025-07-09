@@ -31,21 +31,23 @@ class TaskmasterClient:
     def send_socket_command(self, command):
         """Send command via Socket"""
         try:
-            print(f"Connecting to socket server at {self.host}:{self.port}")
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             client_socket.settimeout(5)
             
             client_socket.connect((self.host, self.port))
-            
+
             client_socket.send(f"{command}\n".encode())
-            response = client_socket.recv(1024).decode().strip()
-            
+            response_text = client_socket.recv(4092).decode().strip()
             client_socket.close()
-            return response
+            try:
+                return json.loads(response_text)
+            except json.JSONDecodeError:
+                return {"status": "error", "message": f"Invalid response: {response_text}"}
             
         except socket.error as e:
             print(f"Socket connection error: {e}")
-            return False
+            return {"status": "error", "message": f"Connection error: {e}"}
+
     
     def send_command(self, command):
         if self.method == 'http':

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taskmaster Logs</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>Taskmaster</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li><a href="index.html"><i class="material-icons">dashboard</i> Dashboard</a></li>
+                    <li><a href="logs.html" class="active"><i class="material-icons">article</i> Logs</a></li>
+                </ul>
+            </nav>
+        </aside>
+        <main class="main-content">
+            <header class="main-header">
+                <h2 class="header-title">Logs</h2>
+            </header>
+            <div class="logs-container" style="padding: 24px; overflow-y:auto; height:calc(100vh - 140px); background: var(--background-color);">
+                <pre id="logsContent" style="white-space: pre-wrap; word-wrap: break-word; font-family: monospace;"></pre>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        async function fetchLogs() {
+            try {
+                const response = await fetch('/logs_content');
+                if (response.ok) {
+                    const text = await response.text();
+                    document.getElementById('logsContent').textContent = text;
+                } else {
+                    document.getElementById('logsContent').textContent = `Error fetching logs: ${response.statusText}`;
+                }
+            } catch (err) {
+                document.getElementById('logsContent').textContent = 'Error fetching logs: ' + err;
+            }
+        }
+        // Fetch logs on load and every 5 seconds
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchLogs();
+            setInterval(fetchLogs, 5000);
+        });
+    </script>
+</body>
+</html>

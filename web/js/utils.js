@@ -7,21 +7,32 @@
  */
 class DOMUtils {
     /**
-     * Get element by ID with error handling
+     * Get element by ID
      * @param {string} id - Element ID
-     * @returns {HTMLElement|null} Element or null
+     * @returns {HTMLElement|null} Element or null if not found
      */
     static getElementById(id) {
-        const element = document.getElementById(id);
-        if (!element) {
-            console.warn(`Element with ID '${id}' not found`);
+        return document.getElementById(id);
+    }
+
+    /**
+     * Add event listener with null check
+     * @param {HTMLElement} element - Element to add listener to
+     * @param {string} event - Event name
+     * @param {Function} callback - Event callback
+     * @returns {boolean} Whether listener was added
+     */
+    static addEventListener(element, event, callback) {
+        if (element) {
+            element.addEventListener(event, callback);
+            return true;
         }
-        return element;
+        return false;
     }
 
     /**
      * Create element with attributes and content
-     * @param {string} tag - HTML tag name
+     * @param {string} tag - Element tag name
      * @param {Object} attributes - Element attributes
      * @param {string|HTMLElement} content - Element content
      * @returns {HTMLElement} Created element
@@ -29,68 +40,45 @@ class DOMUtils {
     static createElement(tag, attributes = {}, content = '') {
         const element = document.createElement(tag);
         
-        Object.entries(attributes).forEach(([key, value]) => {
+        for (const [key, value] of Object.entries(attributes)) {
             if (key === 'className') {
                 element.className = value;
-            } else if (key === 'dataset') {
-                Object.entries(value).forEach(([dataKey, dataValue]) => {
-                    element.dataset[dataKey] = dataValue;
-                });
             } else {
                 element.setAttribute(key, value);
             }
-        });
-
+        }
+        
         if (typeof content === 'string') {
             element.innerHTML = content;
         } else if (content instanceof HTMLElement) {
             element.appendChild(content);
         }
-
+        
         return element;
     }
 
     /**
-     * Add event listener with error handling
-     * @param {HTMLElement} element - Target element
-     * @param {string} event - Event type
-     * @param {Function} handler - Event handler
-     * @param {Object} options - Event options
-     */
-    static addEventListener(element, event, handler, options = {}) {
-        if (!element) {
-            console.warn('Cannot add event listener to null element');
-            return;
-        }
-
-        element.addEventListener(event, (e) => {
-            try {
-                handler(e);
-            } catch (error) {
-                console.error(`Error in ${event} handler:`, error);
-            }
-        }, options);
-    }
-
-    /**
      * Toggle class on element
-     * @param {HTMLElement} element - Target element
-     * @param {string} className - Class name to toggle
-     * @param {boolean} force - Force add/remove
+     * @param {HTMLElement} element - Element to toggle class on
+     * @param {string} className - Class to toggle
+     * @param {boolean} force - Force add or remove
      */
-    static toggleClass(element, className, force = undefined) {
-        if (!element) return;
-        element.classList.toggle(className, force);
+    static toggleClass(element, className, force) {
+        if (element) {
+            element.classList.toggle(className, force);
+        }
     }
 
     /**
-     * Show/hide element
-     * @param {HTMLElement} element - Target element
-     * @param {boolean} show - Whether to show the element
+     * Remove all children from element
+     * @param {HTMLElement} element - Element to clear
      */
-    static toggleVisibility(element, show) {
-        if (!element) return;
-        element.style.display = show ? '' : 'none';
+    static clearElement(element) {
+        if (element) {
+            while (element.firstChild) {
+                element.removeChild(element.firstChild);
+            }
+        }
     }
 }
 
@@ -100,88 +88,142 @@ class DOMUtils {
 class AnimationUtils {
     /**
      * Fade in element
-     * @param {HTMLElement} element - Target element
+     * @param {HTMLElement} element - Element to fade in
      * @param {number} duration - Animation duration in ms
+     * @returns {Promise} Promise that resolves when animation ends
      */
     static fadeIn(element, duration = 300) {
-        if (!element) return;
+        if (!element) return Promise.resolve();
         
-        element.style.opacity = '0';
-        element.style.display = '';
-        
-        const start = performance.now();
-        
-        function animate(currentTime) {
-            const elapsed = currentTime - start;
-            const progress = Math.min(elapsed / duration, 1);
+        return new Promise(resolve => {
+            element.style.opacity = '0';
+            element.style.display = '';
             
-            element.style.opacity = progress;
+            let start = null;
             
-            if (progress < 1) {
-                requestAnimationFrame(animate);
+            function animate(timestamp) {
+                if (!start) start = timestamp;
+                const progress = timestamp - start;
+                const opacity = Math.min(progress / duration, 1);
+                
+                element.style.opacity = opacity;
+                
+                if (progress < duration) {
+                    requestAnimationFrame(animate);
+                } else {
+                    element.style.opacity = '';
+                    resolve();
+                }
             }
-        }
-        
-        requestAnimationFrame(animate);
+            
+            requestAnimationFrame(animate);
+        });
     }
 
     /**
      * Fade out element
-     * @param {HTMLElement} element - Target element
+     * @param {HTMLElement} element - Element to fade out
      * @param {number} duration - Animation duration in ms
+     * @returns {Promise} Promise that resolves when animation ends
      */
     static fadeOut(element, duration = 300) {
-        if (!element) return;
+        if (!element) return Promise.resolve();
         
-        const start = performance.now();
-        const startOpacity = parseFloat(getComputedStyle(element).opacity);
-        
-        function animate(currentTime) {
-            const elapsed = currentTime - start;
-            const progress = Math.min(elapsed / duration, 1);
+        return new Promise(resolve => {
+            let start = null;
+            const initialOpacity = parseFloat(getComputedStyle(element).opacity);
             
-            element.style.opacity = startOpacity * (1 - progress);
-            
-            if (progress >= 1) {
-                element.style.display = 'none';
-            } else {
-                requestAnimationFrame(animate);
+            function animate(timestamp) {
+                if (!start) start = timestamp;
+                const progress = timestamp - start;
+                const opacity = Math.max(initialOpacity - (progress / duration), 0);
+                
+                element.style.opacity = opacity;
+                
+                if (progress < duration) {
+                    requestAnimationFrame(animate);
+                } else {
+                    element.style.display = 'none';
+                    element.style.opacity = '';
+                    resolve();
+                }
             }
-        }
-        
-        requestAnimationFrame(animate);
+            
+            requestAnimationFrame(animate);
+        });
     }
 
     /**
      * Slide down element
-     * @param {HTMLElement} element - Target element
+     * @param {HTMLElement} element - Element to slide down
      * @param {number} duration - Animation duration in ms
+     * @returns {Promise} Promise that resolves when animation ends
      */
     static slideDown(element, duration = 300) {
-        if (!element) return;
+        if (!element) return Promise.resolve();
         
-        element.style.height = '0';
-        element.style.overflow = 'hidden';
-        element.style.display = '';
-        
-        const targetHeight = element.scrollHeight;
-        const start = performance.now();
-        
-        function animate(currentTime) {
-            const elapsed = currentTime - start;
-            const progress = Math.min(elapsed / duration, 1);
+        return new Promise(resolve => {
+            element.style.overflow = 'hidden';
+            element.style.display = '';
+            element.style.height = '0';
             
-            element.style.height = (targetHeight * progress) + 'px';
+            const targetHeight = element.scrollHeight;
+            let start = null;
             
-            if (progress >= 1) {
-                element.style.height = '';
-                element.style.overflow = '';
-            } else {
-                requestAnimationFrame(animate);
+            function animate(timestamp) {
+                if (!start) start = timestamp;
+                const progress = timestamp - start;
+                const percentage = Math.min(progress / duration, 1);
+                
+                element.style.height = (targetHeight * percentage) + 'px';
+                
+                if (progress < duration) {
+                    requestAnimationFrame(animate);
+                } else {
+                    element.style.height = '';
+                    element.style.overflow = '';
+                    resolve();
+                }
             }
-        }
+            
+            requestAnimationFrame(animate);
+        });
+    }
+
+    /**
+     * Slide up element
+     * @param {HTMLElement} element - Element to slide up
+     * @param {number} duration - Animation duration in ms
+     * @returns {Promise} Promise that resolves when animation ends
+     */
+    static slideUp(element, duration = 300) {
+        if (!element) return Promise.resolve();
         
-        requestAnimationFrame(animate);
+        return new Promise(resolve => {
+            element.style.overflow = 'hidden';
+            element.style.height = element.offsetHeight + 'px';
+            
+            let start = null;
+            
+            function animate(timestamp) {
+                if (!start) start = timestamp;
+                const progress = timestamp - start;
+                const percentage = Math.max(1 - (progress / duration), 0);
+                
+                element.style.height = (element.offsetHeight * percentage) + 'px';
+                
+                if (progress < duration) {
+                    requestAnimationFrame(animate);
+                } else {
+                    element.style.display = 'none';
+                    element.style.height = '';
+                    element.style.overflow = '';
+                    resolve();
+                }
+            }
+            
+            requestAnimationFrame(animate);
+        });
     }
 }
 
@@ -190,43 +232,63 @@ class AnimationUtils {
  */
 class StorageUtils {
     /**
-     * Get item from localStorage with JSON parsing
+     * Get item from localStorage with fallback
      * @param {string} key - Storage key
-     * @param {*} defaultValue - Default value if key doesn't exist
+     * @param {*} defaultValue - Default value if not found
      * @returns {*} Stored value or default
      */
     static getItem(key, defaultValue = null) {
         try {
-            const item = localStorage.getItem(key);
-            return item ? JSON.parse(item) : defaultValue;
+            const value = localStorage.getItem(key);
+            return value !== null ? JSON.parse(value) : defaultValue;
         } catch (error) {
-            console.warn(`Error reading from localStorage key '${key}':`, error);
+            console.error('Error reading from localStorage:', error);
             return defaultValue;
         }
     }
 
     /**
-     * Set item in localStorage with JSON stringification
+     * Set item in localStorage
      * @param {string} key - Storage key
      * @param {*} value - Value to store
+     * @returns {boolean} Whether operation succeeded
      */
     static setItem(key, value) {
         try {
             localStorage.setItem(key, JSON.stringify(value));
+            return true;
         } catch (error) {
-            console.warn(`Error writing to localStorage key '${key}':`, error);
+            console.error('Error writing to localStorage:', error);
+            return false;
         }
     }
 
     /**
      * Remove item from localStorage
      * @param {string} key - Storage key
+     * @returns {boolean} Whether operation succeeded
      */
     static removeItem(key) {
         try {
             localStorage.removeItem(key);
+            return true;
         } catch (error) {
-            console.warn(`Error removing localStorage key '${key}':`, error);
+            console.error('Error removing from localStorage:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Clear localStorage
+     * @returns {boolean} Whether operation succeeded
+     */
+    static clear() {
+        try {
+            localStorage.clear();
+            return true;
+        } catch (error) {
+            console.error('Error clearing localStorage:', error);
+            return false;
         }
     }
 }
@@ -240,15 +302,21 @@ class StorageUtils {
  */
 function debounce(func, wait, immediate = false) {
     let timeout;
+    
     return function executedFunction(...args) {
-        const later = () => {
+        const context = this;
+        
+        const later = function() {
             timeout = null;
-            if (!immediate) func(...args);
+            if (!immediate) func.apply(context, args);
         };
+        
         const callNow = immediate && !timeout;
+        
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
-        if (callNow) func(...args);
+        
+        if (callNow) func.apply(context, args);
     };
 }
 
@@ -260,9 +328,12 @@ function debounce(func, wait, immediate = false) {
  */
 function throttle(func, limit) {
     let inThrottle;
+    
     return function(...args) {
+        const context = this;
+        
         if (!inThrottle) {
-            func.apply(this, args);
+            func.apply(context, args);
             inThrottle = true;
             setTimeout(() => inThrottle = false, limit);
         }
@@ -275,85 +346,37 @@ function throttle(func, limit) {
  * @returns {string} Formatted duration
  */
 function formatDuration(seconds) {
-    if (!seconds || seconds < 0) return '0s';
-    
-    const units = [
-        { name: 'd', value: 86400 },
-        { name: 'h', value: 3600 },
-        { name: 'm', value: 60 },
-        { name: 's', value: 1 }
-    ];
-    
-    const parts = [];
-    let remaining = Math.floor(seconds);
-    
-    for (const unit of units) {
-        if (remaining >= unit.value) {
-            const count = Math.floor(remaining / unit.value);
-            parts.push(`${count}${unit.name}`);
-            remaining %= unit.value;
-        }
+    if (isNaN(seconds) || seconds === null) {
+        return '-';
     }
     
-    return parts.length > 0 ? parts.slice(0, 2).join(' ') : '0s';
+    if (seconds < 60) {
+        return `${seconds}s`;
+    } else if (seconds < 3600) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes}m${remainingSeconds > 0 ? ` ${remainingSeconds}s` : ''}`;
+    } else {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        return `${hours}h${minutes > 0 ? ` ${minutes}m` : ''}`;
+    }
 }
 
 /**
  * Escape HTML to prevent XSS
- * @param {string} text - Text to escape
- * @returns {string} Escaped text
+ * @param {string} unsafe - Unsafe string
+ * @returns {string} Escaped string
  */
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-/**
- * Generate unique ID
- * @returns {string} Unique ID
- */
-function generateId() {
-    return 'id_' + Math.random().toString(36).substr(2, 9);
-}
-
-/**
- * Copy text to clipboard
- * @param {string} text - Text to copy
- * @returns {Promise<boolean>} Success status
- */
-async function copyToClipboard(text) {
-    try {
-        if (navigator.clipboard && window.isSecureContext) {
-            await navigator.clipboard.writeText(text);
-            return true;
-        } else {
-            // Fallback for older browsers
-            const textArea = document.createElement('textarea');
-            textArea.value = text;
-            textArea.style.position = 'fixed';
-            textArea.style.left = '-999999px';
-            textArea.style.top = '-999999px';
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            const success = document.execCommand('copy');
-            textArea.remove();
-            return success;
-        }
-    } catch (error) {
-        console.error('Failed to copy text:', error);
-        return false;
+function escapeHtml(unsafe) {
+    if (typeof unsafe !== 'string') {
+        return '';
     }
+    
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
-
-// Export utilities to global scope
-window.DOMUtils = DOMUtils;
-window.AnimationUtils = AnimationUtils;
-window.StorageUtils = StorageUtils;
-window.debounce = debounce;
-window.throttle = throttle;
-window.formatDuration = formatDuration;
-window.escapeHtml = escapeHtml;
-window.generateId = generateId;
-window.copyToClipboard = copyToClipboard;

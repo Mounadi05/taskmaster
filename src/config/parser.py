@@ -16,8 +16,6 @@ from .defaults import (
     SMTP_DEFAULTS,
     WEBUI_DEFAULTS
 )
-
-
 class ConfigError(Exception):
     pass
 

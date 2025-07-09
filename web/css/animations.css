@@ -1,0 +1,81 @@
+/* Animations for Taskmaster Dashboard */
+
+/* Fade In Animation */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Slide Up Animation */
+@keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* Slide In Animation */
+@keyframes slideIn {
+    from { transform: translateX(20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* Pulse Animation */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* Applying animations */
+.main-header {
+    animation: fadeIn 0.6s ease forwards;
+}
+
+.summary-card .counter {
+    transition: transform 0.3s ease;
+}
+
+.action-success {
+    animation: pulse 0.6s ease;
+}
+
+.summary-card {
+    opacity: 0;
+    animation: slideUp 0.6s ease forwards;
+}
+
+.summary-card:nth-child(1) {
+    animation-delay: 0.1s;
+}
+
+.summary-card:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.summary-card:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+.summary-card:nth-child(4) {
+    animation-delay: 0.4s;
+}
+
+.bulk-controls {
+    opacity: 0;
+    animation: fadeIn 0.6s ease forwards;
+    animation-delay: 0.5s;
+}
+
+.process-card {
+    opacity: 0;
+    animation: slideIn 0.5s ease forwards;
+}
+
+/* Staggered animation for process cards - 
+   will be handled in JavaScript for dynamic cards */
+
+/* Success animation */
+.action-success {
+    animation: pulse 0.4s ease;
+}
+
+/* Modal animations are already in modals.css */

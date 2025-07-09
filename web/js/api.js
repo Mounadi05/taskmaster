@@ -246,21 +246,36 @@ class APIResponseHandler {
     }
 
     /**
-     * Get status icon for UI
+     * Get status icon HTML for display
      * @param {string} status - Process status
-     * @returns {string} Icon character
+     * @returns {string} Icon HTML
      */
     static getStatusIcon(status) {
-        const iconMap = {
-            'running': '▶',
-            'stopped': '⏸',
-            'starting': '⏳',
-            'stopping': '⏸',
-            'error': '⚠',
-            'fatal': '✕',
-            'exited': '⏹'
-        };
-        return iconMap[status] || '?';
+        let iconClass = '';
+        
+        switch (status) {
+            case 'running':
+                iconClass = 'icon-play';
+                break;
+            case 'stopped':
+            case 'exited':
+                iconClass = 'icon-stop';
+                break;
+            case 'error':
+            case 'fatal':
+                iconClass = 'icon-error';
+                break;
+            case 'starting':
+                iconClass = 'icon-play';
+                break;
+            case 'stopping':
+                iconClass = 'icon-stop';
+                break;
+            default:
+                iconClass = 'icon-stop';
+        }
+        
+        return `<i class="${iconClass}"></i>`;
     }
 }
 

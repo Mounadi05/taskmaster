@@ -81,7 +81,7 @@ class ProcessCommands:
                     "timestamp": datetime.now().isoformat()
                 }
 
-            start_result = self.manager.start_program(program_name)
+            start_result = self.manager.restart_program(program_name)
             return {
                 "status": "success" if start_result else "error",
                 "message": f"Program '{program_name}' restarted successfully" if start_result else f"Failed to restart program '{program_name}'",
@@ -108,7 +108,7 @@ class ProcessCommands:
                         "timestamp": datetime.now().isoformat()
                     }
                 status_data = self.manager.get_program_status(program_name)
-                # print(f"Status data for {program_name}: {status_data}")
+                #print(f"Status data for {program_name}: {status_data}")
                 return {
                     "status": "success",
                     "data": {program_name: status_data},
@@ -116,7 +116,6 @@ class ProcessCommands:
                 }
             else:
                 all_statuses = self.manager.get_all_status()
-                # print(f"All statuses: {all_statuses}")
                 return {
                     "status": "success",
                     "data": all_statuses,

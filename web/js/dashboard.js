@@ -29,7 +29,9 @@ class TaskmasterDashboard {
             refreshBtn: DOMUtils.getElementById('refreshBtn'),
             autoRefreshToggle: DOMUtils.getElementById('autoRefreshToggle'),
             logoutBtn: DOMUtils.getElementById('logoutBtn'),
+            // Add a container wrapper for process cards
             processesContainer: DOMUtils.getElementById('processesContainer'),
+            processesGrid: document.querySelector('.process-grid'),
             
             // Summary cards
             runningCount: DOMUtils.getElementById('runningCount'),
@@ -223,6 +225,44 @@ class TaskmasterDashboard {
     }
 
     /**
+     * Set auto-refresh state
+     * @param {boolean} enabled - Whether auto-refresh is enabled
+     */
+    setAutoRefresh(enabled) {
+        this.autoRefreshEnabled = enabled;
+        this.saveSettings();
+        
+        if (enabled) {
+            this.startAutoRefresh();
+        } else {
+            this.stopAutoRefresh();
+        }
+    }
+
+    /**
+     * Start auto-refresh interval
+     */
+    startAutoRefresh() {
+        this.stopAutoRefresh();
+        
+        if (this.autoRefreshEnabled) {
+            this.autoRefreshInterval = setInterval(() => {
+                this.refreshProcesses();
+            }, this.refreshIntervalMs);
+        }
+    }
+
+    /**
+     * Stop auto-refresh interval
+     */
+    stopAutoRefresh() {
+        if (this.autoRefreshInterval) {
+            clearInterval(this.autoRefreshInterval);
+            this.autoRefreshInterval = null;
+        }
+    }
+
+    /**
      * Refresh processes data
      */
     async refreshProcesses() {
@@ -291,8 +331,25 @@ class TaskmasterDashboard {
      * @param {ProcessCard} processCard - Process card to render
      */
     renderProcessCard(processCard) {
-        const cardElement = processCard.createElement();
-        this.elements.processesContainer.appendChild(cardElement);
+        if (!this.elements.processesContainer) return;
+        
+        // Add to container
+        const element = processCard.getElement();
+        
+        // Add animation delay based on number of cards
+        const index = this.processes.size - 1;
+        const delay = 0.1 * (index % 10); // Limit to 10 different delays
+        element.style.animationDelay = `${0.5 + delay}s`; // Start after summary cards
+        
+        this.elements.processesContainer.appendChild(element);
+        
+        // If this is the first card, hide empty state
+        if (this.processes.size === 1) {
+            const emptyState = this.elements.processesContainer.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.style.display = 'none';
+            }
+        }
     }
 
     /**
@@ -301,24 +358,49 @@ class TaskmasterDashboard {
      */
     removeProcessCard(processName) {
         const processCard = this.processes.get(processName);
-        if (processCard && processCard.element) {
-            processCard.element.remove();
+        
+        if (processCard) {
+            // Remove from DOM
+            const element = processCard.getElement();
+            if (element && element.parentNode) {
+                element.parentNode.removeChild(element);
+            }
+            
+            // Remove from selected processes
+            this.selectedProcesses.delete(processName);
+            
+            // Remove from processes map
+            this.processes.delete(processName);
+            
+            // If no processes left, show empty state
+            if (this.processes.size === 0) {
+                this.showEmptyState();
+            }
+            
+            // Update bulk controls
+            this.updateBulkControls();
         }
-        this.processes.delete(processName);
-        this.selectedProcesses.delete(processName);
     }
 
     /**
      * Show empty state when no processes
      */
     showEmptyState() {
-        this.elements.processesContainer.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-state-icon">📋</div>
-                <div class="empty-state-title">No Processes Found</div>
-                <div class="empty-state-message">No processes are configured or the server is not responding.</div>
-            </div>
+        if (!this.elements.processesContainer) return;
+        
+        // Clear container
+        DOMUtils.clearElement(this.elements.processesContainer);
+        
+        // Add empty state
+        const emptyState = document.createElement('div');
+        emptyState.className = 'empty-state';
+        emptyState.innerHTML = `
+            <div class="empty-icon"><i class="icon-empty"></i></div>
+            <h3>No Processes Found</h3>
+            <p>There are no configured processes available.</p>
         `;
+        
+        this.elements.processesContainer.appendChild(emptyState);
     }
 
     /**
@@ -350,46 +432,15 @@ class TaskmasterDashboard {
         if (this.elements.stoppedCount) this.elements.stoppedCount.textContent = counts.stopped;
         if (this.elements.errorCount) this.elements.errorCount.textContent = counts.error;
         if (this.elements.totalCount) this.elements.totalCount.textContent = counts.total;
-    }
 
-    /**
-     * Set auto-refresh state
-     * @param {boolean} enabled - Whether to enable auto-refresh
-     */
-    setAutoRefresh(enabled) {
-        this.autoRefreshEnabled = enabled;
-        this.saveSettings();
-        
-        if (enabled) {
-            this.startAutoRefresh();
-        } else {
-            this.stopAutoRefresh();
-        }
-    }
-
-    /**
-     * Start auto-refresh
-     */
-    startAutoRefresh() {
-        if (!this.autoRefreshEnabled) return;
-        
-        this.stopAutoRefresh(); // Clear any existing interval
-        
-        this.autoRefreshInterval = setInterval(() => {
-            if (this.autoRefreshEnabled && !loadingOverlay.isShowing()) {
-                this.refreshProcesses();
+        // Add subtle pulse animation on summary cards when counts update
+        ['runningCount','stoppedCount','errorCount','totalCount'].forEach(id => {
+            const el = this.elements[id];
+            if (el) {
+                el.classList.add('action-success');
+                setTimeout(() => el.classList.remove('action-success'), 600);
             }
-        }, this.refreshIntervalMs);
-    }
-
-    /**
-     * Stop auto-refresh
-     */
-    stopAutoRefresh() {
-        if (this.autoRefreshInterval) {
-            clearInterval(this.autoRefreshInterval);
-            this.autoRefreshInterval = null;
-        }
+        });
     }
 
     /**
@@ -644,20 +695,130 @@ class TaskmasterDashboard {
                                 <span class="detail-value">${config.workingdir || '-'}</span>
                             </div>
                             <div class="detail-row">
-                                <span class="detail-label">User:</span>
-                                <span class="detail-value">${config.user || '-'}</span>
+                                <span class="detail-label">Number of Processes:</span>
+                                <span class="detail-value">${config.numprocs || 1}</span>
                             </div>
+                        </div>
+                    </div>
+
+                    ${config.user || config.group || config.umask || config.priority ? `
+                    <div class="detail-section">
+                        <h5>Process Control</h5>
+                        <div class="detail-grid">
+                            ${config.user ? `
+                            <div class="detail-row">
+                                <span class="detail-label">User:</span>
+                                <span class="detail-value">${config.user}</span>
+                            </div>
+                            ` : ''}
+                            ${config.group ? `
                             <div class="detail-row">
                                 <span class="detail-label">Group:</span>
-                                <span class="detail-value">${config.group || '-'}</span>
+                                <span class="detail-value">${config.group}</span>
                             </div>
+                            ` : ''}
+                            ${config.umask ? `
+                            <div class="detail-row">
+                                <span class="detail-label">Umask:</span>
+                                <span class="detail-value">${config.umask}</span>
+                            </div>
+                            ` : ''}
+                            ${config.priority ? `
+                            <div class="detail-row">
+                                <span class="detail-label">Priority:</span>
+                                <span class="detail-value">${config.priority}</span>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    ${processData.stdout || processData.stderr ? `
+                    <div class="detail-section">
+                        <h5>Logging</h5>
+                        <div class="detail-grid">
+                            ${processData.stdout ? `
+                            <div class="detail-row">
+                                <span class="detail-label">Stdout:</span>
+                                <span class="detail-value">${typeof processData.stdout === 'object' ? 
+                                    (processData.stdout.path + (processData.stdout.maxbytes ? ` (max ${processData.stdout.maxbytes} bytes)` : '')) : 
+                                    processData.stdout}</span>
+                            </div>
+                            ` : ''}
+                            ${processData.stderr ? `
+                            <div class="detail-row">
+                                <span class="detail-label">Stderr:</span>
+                                <span class="detail-value">${typeof processData.stderr === 'object' ? 
+                                    (processData.stderr.path + (processData.stderr.maxbytes ? ` (max ${processData.stderr.maxbytes} bytes)` : '')) : 
+                                    processData.stderr}</span>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    ${processData.env && Object.keys(processData.env).length > 0 ? `
+                    <div class="detail-section">
+                        <h5>Environment Variables</h5>
+                        <div class="detail-grid">
+                            ${Object.entries(processData.env).map(([key, value]) => `
+                            <div class="detail-row">
+                                <span class="detail-label">${escapeHtml(key)}:</span>
+                                <span class="detail-value">${escapeHtml(value)}</span>
+                            </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <div class="detail-section">
+                        <h5>Actions</h5>
+                        <div class="detail-actions">
+                            <button class="btn btn-success action-start" ${processData.status === 'running' ? 'disabled' : ''}>
+                                <i class="material-icons">play_arrow</i> Start
+                            </button>
+                            <button class="btn btn-danger action-stop" ${processData.status !== 'running' ? 'disabled' : ''}>
+                                <i class="material-icons">stop</i> Stop
+                            </button>
+                            <button class="btn btn-warning action-restart">
+                                <i class="material-icons">refresh</i> Restart
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
         `;
 
-        this.elements.detailModal.setContent(`Process Details - ${processName}`, content);
+        this.elements.detailModal.setContent(content);
+        
+        // Add event listeners to action buttons
+        const detailModalBody = document.getElementById('detailModalBody');
+        
+        if (detailModalBody) {
+            const startBtn = detailModalBody.querySelector('.action-start');
+            if (startBtn) {
+                startBtn.addEventListener('click', () => {
+                    this.elements.detailModal.hide();
+                    this.startProcess(processName);
+                });
+            }
+            
+            const stopBtn = detailModalBody.querySelector('.action-stop');
+            if (stopBtn) {
+                stopBtn.addEventListener('click', () => {
+                    this.elements.detailModal.hide();
+                    this.stopProcess(processName);
+                });
+            }
+            
+            const restartBtn = detailModalBody.querySelector('.action-restart');
+            if (restartBtn) {
+                restartBtn.addEventListener('click', () => {
+                    this.elements.detailModal.hide();
+                    this.restartProcess(processName);
+                });
+            }
+        }
     }
 
     /**
@@ -722,7 +883,19 @@ class TaskmasterDashboard {
      */
     handleError(title, error) {
         console.error(title, error);
-        toast.show(title, error.message, 'error');
+        
+        // Show error in modal for serious errors
+        if (this.elements.errorModal) {
+            this.elements.errorModal.setTitle(title);
+            const errorMessage = document.getElementById('errorModalMessage');
+            if (errorMessage) {
+                errorMessage.textContent = error.message || 'An unknown error occurred';
+            }
+            this.elements.errorModal.show();
+        } else {
+            // Fallback to toast
+            toast.show(title, error.message || 'An unknown error occurred', 'error');
+        }
     }
 }
 
@@ -768,37 +941,53 @@ const additionalCSS = `
 
 .detail-grid {
     display: grid;
-    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
 }
 
 .detail-row {
-    display: grid;
-    grid-template-columns: 1fr 2fr;
-    gap: 1rem;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid #f7fafc;
+    display: flex;
+    flex-direction: column;
 }
 
 .detail-label {
     font-weight: 500;
     color: #718096;
+    margin-bottom: 0.25rem;
 }
 
 .detail-value {
     color: #2d3748;
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    font-size: 0.875rem;
-    word-break: break-all;
+    word-break: break-word;
 }
 
-@media (max-width: 768px) {
-    .detail-row {
-        grid-template-columns: 1fr;
-        gap: 0.25rem;
+.detail-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+    .detail-header {
+        border-bottom-color: #2d3748;
+    }
+    
+    .detail-header h4 {
+        color: #e2e8f0;
+    }
+    
+    .detail-section h5 {
+        color: #a0aec0;
+    }
+    
+    .detail-label {
+        color: #a0aec0;
+    }
+    
+    .detail-value {
+        color: #e2e8f0;
     }
 }
 </style>
 `;
 
-// Inject additional CSS
 document.head.insertAdjacentHTML('beforeend', additionalCSS);

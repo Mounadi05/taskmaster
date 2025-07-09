@@ -84,7 +84,6 @@ class ProcessManager:
         """Start all programs configured for autostart."""
         for name, worker in self.processes.items():
             if worker.config.get('autostart', False):
-                print(worker.config)
                 self.logger.info(f"Auto-starting program: {name}")
                 worker.start()
 

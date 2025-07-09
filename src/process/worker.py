@@ -62,7 +62,6 @@ class ProcessWorker:
     
     def handle_notification(self, event_type: str,action,error_msg) -> None:
         if event_type == 'failure' and self.config.get('on_failure', {}).get('smtp', {}).get('enabled'):
-            print(f"Sending failure notification for process {self.name}")
             config = self.config['on_failure']['smtp']
             self.smtp_notifier.send_notification(self.name, action,
                 from_addr=config.get('from'),
@@ -70,8 +69,8 @@ class ProcessWorker:
                 is_success=False,
                 error_message=error_msg
             )
+            logging.error(f"Sending failure notification for process {self.name}: to {config.get('to', [])} with error: {error_msg}")
         elif event_type == 'success' and self.config.get('on_success', {}).get('smtp', {}).get('enabled'):
-            print(f"Sending success notification for process {self.name}")
             config = self.config['on_success']['smtp']
             self.smtp_notifier.send_notification(self.name, action,
                 from_addr=config.get('from'),
@@ -79,6 +78,7 @@ class ProcessWorker:
                 is_success=True,
                 error_message=error_msg
             )
+            logging.info(f"Sending success notification for process {self.name}: to {config.get('to', [])} with message: {error_msg}")
 
     def start(self,restart=False) -> bool:
         self.stop_byuser = False
@@ -136,6 +136,10 @@ class ProcessWorker:
                 self.handle_notification('success', 'restart', None)
             else:
                 self.handle_notification('success', 'start', None)
+            
+            if 'umask' in self.config:
+                os.umask(old_umask)
+            self.logger.info(f"process {self.name} started")
             return True
 
         except Exception as e:
@@ -145,6 +149,8 @@ class ProcessWorker:
             else:
                 self.handle_notification('failure', 'start', str(e))
             self.status = "fatal"
+            if 'umask' in self.config:
+                os.umask(old_umask)
             return False
 
       
@@ -156,7 +162,7 @@ class ProcessWorker:
             return True
 
         try:
-
+            self.logger.info(f"starting to stop process {self.name} with PID {self.pid}")
             stop_signal = getattr(signal, f"SIG{self.config.get('stopsignal', 'TERM')}")
             stop_time = self.config.get('stoptsecs', 10)
 
@@ -166,14 +172,14 @@ class ProcessWorker:
             self.handle_notification('success', 'stop', None)
             # Wait for process to stop
             try:
-                print(f"Waiting for process {self.name} to stop... )")
+                logging.info(f"Waiting for process {self.name} to stop")
                 self.process.wait(timeout=stop_time)
                 self.status = "stopped"
                 self.stop_time = datetime.now()
                 return True
             except subprocess.TimeoutExpired:
                 # Force kill if timeout
-                print(f"Process {self.name} did not stop in time, force killing with SIGKILL")
+                logging.warning(f"Process {self.name} did not stop in time, force killing")
                 self.handle_notification('failure', 'stop', f"Process {self.name} did not stop in time, force killing")
                 os.kill(self.pid, signal.SIGKILL)
                 self.process.wait()
@@ -188,11 +194,11 @@ class ProcessWorker:
             return True
         except Exception as e:
             self.handle_notification('failure', 'stop', str(e))
-            print(f"Error stopping process {self.name}: {e}")
             self.logger.error(f"Error stopping process {self.name}: {e}")
             return False
 
     def restart(self) -> bool:
+        logging.info(f"Restarting process {self.name}")
         success = self.start('restart')
         if success:
             self.restart_count += 1
@@ -316,11 +322,11 @@ class ProcessWorker:
         autorestart = self.config.get('autorestart', 'unexpected')
         exitcodes = self.config.get('exitcodes', [0])
         
-        if autorestart == 'always':
+        if autorestart == 'always' and self.retry_count < 5:
             return True
-        elif autorestart == 'unexpected' and self.exit_code not in exitcodes:
+        elif autorestart == 'unexpected' and self.exit_code not in exitcodes and self.retry_count - 1 < self.get_startretries():
             return True
-        elif self.retry_count < self.get_startretries() and self.status == "fatal":
+        elif self.retry_count - 1 < self.get_startretries() and self.status == "fatal":
             return True
         
         return False

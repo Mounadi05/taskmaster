@@ -5,110 +5,41 @@ from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 import json
-import mimetypes
-import secrets
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from config import ConfigManager
-from process import ProcessManager, ProcessMonitor, ProcessCommands
+from process import ProcessManager, ProcessCommands
 from notifications import SMTPNotifier
 
 old_pathfile = None
-current_server = None
-
+old_server = None
 logging.basicConfig(
-    filename='/tmp/taskamasterd.log',
     level=logging.INFO,
     format='%(asctime)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        logging.FileHandler('/tmp/taskmasterd.log'),  
+        logging.StreamHandler(sys.stdout) 
+    ]
 )
 
 class TaskmasterHTTPHandler(BaseHTTPRequestHandler):
-    # Class-level session storage (in production, use Redis or database)
-    sessions = {}
-
     def __init__(self, server_instance, *args, **kwargs):
         self.taskmaster_server = server_instance
         super().__init__(*args, **kwargs)
-
-    def get_webui_config(self):
-        """Get webui configuration from the server"""
-        if hasattr(self.taskmaster_server, 'config_manager'):
-            return self.taskmaster_server.config_manager.get_webui_config()
-        return {}
-
-    def is_auth_enabled(self):
-        """Check if authentication is enabled"""
-        webui_config = self.get_webui_config()
-        auth_config = webui_config.get('auth', {})
-        return auth_config.get('enabled', False)
-
-    def get_auth_credentials(self):
-        """Get authentication credentials from config"""
-        webui_config = self.get_webui_config()
-        auth_config = webui_config.get('auth', {})
-        return auth_config.get('username'), auth_config.get('password')
-
-    def get_session_token(self):
-        """Extract session token from cookies"""
-        cookie_header = self.headers.get('Cookie', '')
-        for cookie in cookie_header.split(';'):
-            if '=' in cookie:
-                name, value = cookie.strip().split('=', 1)
-                if name == 'taskmaster_session':
-                    return value
-        return None
-
-    def is_authenticated(self):
-        """Check if the request is authenticated"""
-        if not self.is_auth_enabled():
-            return True  # No auth required
-
-        session_token = self.get_session_token()
-        if not session_token:
-            return False
-
-        return session_token in self.sessions
-
-    def create_session(self):
-        """Create a new session token"""
-        session_token = secrets.token_urlsafe(32)
-        self.sessions[session_token] = {
-            'created': datetime.now(),
-            'last_access': datetime.now()
-        }
-        return session_token
-
+    
     def do_GET(self):
         """Handle GET requests"""
         parsed_path = urlparse(self.path)
         query_params = parse_qs(parsed_path.query)
-
-        # Handle login page
-        if parsed_path.path == '/login':
-            self.serve_login_page()
-            return
-
-        # Handle logout
-        if parsed_path.path == '/logout':
-            self.handle_logout()
-            return
-
-        # Check authentication for protected routes
-        if not self.is_authenticated():
-            self.redirect_to_login()
-            return
-
+        
         if parsed_path.path == '/command':
             cmd_list = query_params.get('cmd', [])
+
             if not cmd_list:
                 self.send_error(400, "Missing command parameter")
                 return
-
-            # Split the command string into words
-            cmd_string = cmd_list[0] if cmd_list else ""
-            cmd_words = cmd_string.split()
-            command, args = parse_request(cmd_words)
+            command, args = parse_request(cmd_list)
             if not command:
                 self.send_error(400, "Invalid command format")
                 return
@@ -118,257 +49,56 @@ class TaskmasterHTTPHandler(BaseHTTPRequestHandler):
 
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
-                self.send_header('Access-Control-Allow-Origin', '*')
                 self.end_headers()
                 self.wfile.write(json.dumps(response).encode())
             except Exception as e:
                 self.send_error(500, f"Error processing command: {str(e)}")
         else:
-            # Serve static files for the web dashboard
-            self.serve_static_file(parsed_path.path)
-
-    def serve_static_file(self, path):
-        """Serve static files for the web dashboard"""
-        try:
-            # Get the current script directory and go up to project root
-            script_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            web_root = os.path.join(script_dir, 'web')
-
-            # Default to index.html for root path
-            if path == '/' or path == '':
-                path = '/index.html'
-
-            # Remove leading slash and construct file path
-            file_path = os.path.join(web_root, path.lstrip('/'))
-
-            # Security check: ensure file is within web directory
-            if not os.path.abspath(file_path).startswith(os.path.abspath(web_root)):
-                self.send_error(403, "Access denied")
-                return
-
-            # Check if file exists
-            if not os.path.exists(file_path):
-                self.send_error(404, "File not found")
-                return
-
-            # Get MIME type
-            mime_type, _ = mimetypes.guess_type(file_path)
-            if mime_type is None:
-                mime_type = 'application/octet-stream'
-
-            # Read and serve the file
-            with open(file_path, 'rb') as f:
-                content = f.read()
-
-            self.send_response(200)
-            self.send_header('Content-type', mime_type)
-            self.send_header('Content-length', str(len(content)))
-            self.end_headers()
-            self.wfile.write(content)
-
-        except Exception as e:
-            self.send_error(500, f"Error serving file: {str(e)}")
-
-    def do_POST(self):
-        """Handle POST requests"""
-        parsed_path = urlparse(self.path)
-
-        if parsed_path.path == '/login':
-            self.handle_login()
-            return
-
-        # For other POST requests, check authentication
-        if not self.is_authenticated():
-            self.send_error(401, "Authentication required")
-            return
-
-        # Handle other POST requests here if needed
-        self.send_error(404, "Not found")
-
-    def do_HEAD(self):
-        """Handle HEAD requests"""
-        # For HEAD requests, we just call do_GET but don't send the body
-        self.do_GET()
-
-    def do_OPTIONS(self):
-        """Handle OPTIONS requests for CORS preflight"""
-        self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
-        self.end_headers()
-
-    def redirect_to_login(self):
-        """Redirect to login page"""
-        self.send_response(302)
-        self.send_header('Location', '/login')
-        self.end_headers()
-
-    def handle_login(self):
-        """Handle login form submission"""
-        try:
-            content_length = int(self.headers.get('Content-Length', 0))
-            post_data = self.rfile.read(content_length).decode('utf-8')
-            params = parse_qs(post_data)
-
-            username = params.get('username', [''])[0]
-            password = params.get('password', [''])[0]
-
-            config_username, config_password = self.get_auth_credentials()
-
-            if username == config_username and password == config_password:
-                # Create session
-                session_token = self.create_session()
-
-                # Redirect to dashboard with session cookie
-                self.send_response(302)
-                self.send_header('Location', '/')
-                self.send_header('Set-Cookie', f'taskmaster_session={session_token}; Path=/; HttpOnly')
-                self.end_headers()
-            else:
-                # Invalid credentials, redirect back to login with error
-                self.send_response(302)
-                self.send_header('Location', '/login?error=1')
-                self.end_headers()
-        except Exception as e:
-            self.send_error(500, f"Login error: {str(e)}")
-
-    def handle_logout(self):
-        """Handle logout"""
-        session_token = self.get_session_token()
-        if session_token and session_token in self.sessions:
-            del self.sessions[session_token]
-
-        # Clear cookie and redirect to login
-        self.send_response(302)
-        self.send_header('Location', '/login')
-        self.send_header('Set-Cookie', 'taskmaster_session=; Path=/; HttpOnly; Expires=Thu, 01 Jan 1970 00:00:00 GMT')
-        self.end_headers()
-
-    def serve_login_page(self):
-        """Serve the login page"""
-        query_params = parse_qs(urlparse(self.path).query)
-        error = query_params.get('error', [None])[0]
-
-        login_html = self.get_login_html(error)
-
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html')
-        self.send_header('Content-length', str(len(login_html)))
-        self.end_headers()
-        self.wfile.write(login_html.encode())
-
-    def get_login_html(self, error=None):
-        """Generate login page HTML"""
-        error_message = ""
-        if error:
-            error_message = '<div class="error">Invalid username or password</div>'
-
-        return f"""
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Taskmaster Login</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        body {{
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0;
-        }}
-        .login-container {{
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 12px;
-            padding: 2rem;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            width: 100%;
-            max-width: 400px;
-        }}
-        .login-title {{
-            text-align: center;
-            margin-bottom: 2rem;
-            color: #2d3748;
-            font-size: 1.5rem;
-            font-weight: 700;
-        }}
-        .form-group {{
-            margin-bottom: 1rem;
-        }}
-        .form-label {{
-            display: block;
-            margin-bottom: 0.5rem;
-            color: #4a5568;
-            font-weight: 500;
-        }}
-        .form-input {{
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            font-size: 1rem;
-            transition: border-color 0.2s ease;
-            box-sizing: border-box;
-        }}
-        .form-input:focus {{
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }}
-        .login-btn {{
-            width: 100%;
-            padding: 0.75rem;
-            background: #3b82f6;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background 0.2s ease;
-        }}
-        .login-btn:hover {{
-            background: #2563eb;
-        }}
-        .error {{
-            background: #fee2e2;
-            color: #991b1b;
-            padding: 0.75rem;
-            border-radius: 6px;
-            margin-bottom: 1rem;
-            text-align: center;
-        }}
-    </style>
-</head>
-<body>
-    <div class="login-container">
-        <h1 class="login-title">🔐 Taskmaster Login</h1>
-        {error_message}
-        <form method="POST" action="/login">
-            <div class="form-group">
-                <label class="form-label" for="username">Username</label>
-                <input class="form-input" type="text" id="username" name="username" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label" for="password">Password</label>
-                <input class="form-input" type="password" id="password" name="password" required>
-            </div>
-            <button class="login-btn" type="submit">Login</button>
-        </form>
-    </div>
-</body>
-</html>
-        """
-
+            self.send_error(404, "Endpoint not found")
+    
     def log_message(self, format, *args):
         """Override to suppress HTTP server logs"""
         pass
+
+
+
+def fix_socket_request(command):
+    command = command.strip()
+    
+    if not (command.startswith('[') and command.endswith(']')):
+        return [command]
+    
+    command = command[1:-1].strip()
+    
+    if not command: 
+        return []
+    
+    result = []
+    in_quotes = False
+    current_item = ""
+    quote_char = None
+    
+    for char in command:
+        if char in ['"', "'"]:
+            if not in_quotes:  
+                in_quotes = True
+                quote_char = char
+            elif char == quote_char:  
+                in_quotes = False
+                quote_char = None
+            else:  
+                current_item += char
+        elif char == ',' and not in_quotes:  
+            result.append(current_item.strip().strip('\'"'))  
+            current_item = ""
+        else:
+            current_item += char
+    
+    if current_item:
+        result.append(current_item.strip().strip('\'"'))
+    
+    return result
+
 
 class SocketServer:
     """Socket server for handling raw socket connections"""
@@ -389,7 +119,6 @@ class SocketServer:
             self.socket.bind((self.host, self.port))
             self.socket.listen(5)
             self.running = True
-            print(f"Socket server listening on {self.host}:{self.port}")
             
             while self.running:
                 try:
@@ -410,19 +139,17 @@ class SocketServer:
         finally:
             if self.socket:
                 self.socket.close()
-    
+
     def handle_client(self, client_socket, address):
-        """Handle individual client connections"""
-        print(f"Socket connection from {address}")
         
         try:
             while True:
                 data = client_socket.recv(1024).decode().strip()
                 if not data:
                     break
-                
                 try:
-                    command, args = parse_request(data.split())
+                    data_list = fix_socket_request(data)
+                    command, args = parse_request(data_list)
                     response = process_command(command, args, self.taskmaster_server)
                 except Exception as e:
                     response = {
@@ -430,14 +157,12 @@ class SocketServer:
                         "message": f"Error processing command: {str(e)}",
                         "timestamp": datetime.now().isoformat()
                     }
-                
                 client_socket.send(json.dumps(response).encode() + b'\n')
                 
         except Exception as e:
             print(f"Error handling socket client {address}: {e}")
         finally:
             client_socket.close()
-            print(f"Socket connection closed for {address}")
     
     def stop(self):
         """Stop the socket server"""
@@ -451,7 +176,6 @@ class TaskmasterServer:
     def __init__(self, port, server_type='socket', config_manager=None,smtp_config=None):
         self.port = port
         self.server_type = server_type  # 'http', 'socket'
-        self.config_manager = config_manager  # Store config manager for authentication
         self.http_server = None
         self.socket_server = None
         self.running = False
@@ -459,6 +183,12 @@ class TaskmasterServer:
         self.smtp_notifier = SMTPNotifier(smtp_config)
         self.process_commands = ProcessCommands(self.process_manager)
     
+
+    def set_ProcessManager(self, config_manager, smtp_config=None):
+        self.process_manager = ProcessManager(config_manager, smtp_config=smtp_config)
+        self.smtp_notifier = SMTPNotifier(smtp_config)
+        self.process_commands = ProcessCommands(self.process_manager)
+
     def start(self):
         """Start HTTP and/or Socket servers based on server_type"""
         logging.info(f"Starting Taskmaster server with type: {self.server_type}, port: {self.port}")
@@ -474,7 +204,7 @@ class TaskmasterServer:
                 http_thread = threading.Thread(target=self.http_server.serve_forever)
                 http_thread.daemon = True
                 http_thread.start()
-                print(f"HTTP server started on http://localhost:{http_port}")
+                logging.info(f"HTTP server started on port {http_port}")
             except Exception as e:
                 print(f"Failed to start HTTP server: {e}")
                 if self.server_type == 'http':
@@ -488,7 +218,7 @@ class TaskmasterServer:
                 socket_thread = threading.Thread(target=self.socket_server.start)
                 socket_thread.daemon = True
                 socket_thread.start()
-                print(f"Socket server started on localhost:{socket_port}")
+                logging.info(f"Socket server started on port {socket_port}")
             except Exception as e:
                 print(f"Failed to start Socket server: {e}")
                 if self.server_type == 'socket':
@@ -499,7 +229,6 @@ class TaskmasterServer:
             while self.running:
                 time.sleep(1)
         except KeyboardInterrupt:
-            print("\nShutting down servers...")
             self.stop()
     
     def stop(self):
@@ -508,12 +237,9 @@ class TaskmasterServer:
         
         if self.http_server:
             self.http_server.shutdown()
-            print("HTTP server stopped")
         
         if self.socket_server:
             self.socket_server.stop()
-            print("Socket server stopped")
-    
 
 def daemonize(working_directory='/tmp'):
     """Daemonize the current process"""
@@ -554,32 +280,26 @@ def daemonize(working_directory='/tmp'):
         os.dup2(dev_null_w.fileno(), sys.stdout.fileno())
         os.dup2(dev_null_w.fileno(), sys.stderr.fileno())
 
-def signal_handler(signum, frame):
-    global current_server
-
-    if current_server:
-        current_server.stop()
-
+def signal_handler():
+    """Handle termination signals"""
     if os.path.exists('/tmp/Taskmasterd.pid'):
-        os.remove('/tmp/Taskmasterd.pid')
+        os.rmdir('/tmp/Taskmasterd.pid')
     sys.exit(0)
 
 
 def parse_request(message:list):
     cmd = message[0]
     args = message[1:]
-    print(f"Command: {cmd}, Args: {args}")
     return cmd, args
-    
+
+
+
 def process_command(command, args, server_instance=None):
         """Process the command and log it"""
         # Get or create the process_commands instance
         if not hasattr(process_command, 'process_commands'):
             if server_instance and hasattr(server_instance, 'process_commands'):
                 process_command.process_commands = server_instance.process_commands
-            else:
-                # Create a new instance if server is not available
-                process_command.process_commands = ProcessCommands(ProcessManager(None))
 
         response = None
         if command == 'alive':
@@ -609,28 +329,36 @@ def process_command(command, args, server_instance=None):
             }
         
         # logging.info(response['message'])
-        # print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {response['message']}")
         
         return response    
 
 
 def reload_config(config,reload=False):
-    global old_pathfile, current_server
-    print(f"Reloading configuration...{old_pathfile}")
-    if current_server:
-        current_server.stop()
-        time.sleep(0.5)
+    global old_pathfile, old_server
     if reload and old_pathfile:
         config = old_pathfile
-    Config = ConfigManager(config)
-    server_config = Config.get_server_config()
-    type = server_config.get('type', 'socket')
-    port = server_config.get('port', 1337)
-    host = server_config.get('host', 'localhost')
-    smtp_config = Config.get_smtp_config()
+    
+    new_Config = ConfigManager(config)
+    server_config = new_Config.get_server_config()
+    new_type = server_config.get('type', 'socket')
+    new_port = server_config.get('port', 1337)
+    smtp_config = new_Config.get_smtp_config()
+    if old_server:
+        if old_server.server_type != new_type or old_server.port != new_port:
+            print("Server type or port changed, restarting server...")
+            old_server.stop()
+            old_server = TaskmasterServer(port=new_port, server_type=new_type, config_manager=new_Config, smtp_config=smtp_config)
+            old_server.start()
+            return {"status": "success", "message": "Server restarted with new config", "timestamp": datetime.now().isoformat()}
+        else:
+            old_server.set_ProcessManager(new_Config, smtp_config=smtp_config)
+            process_command.process_commands = old_server.process_commands
+    else:
+        # If no server running, start a new one
+        old_server = TaskmasterServer(port=new_port, server_type=new_type, config_manager=new_Config, smtp_config=smtp_config)
+        old_server.start()
+        return {"status": "success", "message": "Server started with new config", "timestamp": datetime.now().isoformat()}
 
-    current_server = TaskmasterServer(port=port, server_type=type, config_manager=Config,smtp_config=smtp_config)
-    current_server.start()
 
 def main():
     global old_pathfile
@@ -646,8 +374,6 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
 
-
-
     if os.path.exists('/tmp/Taskmasterd.pid'):
         with open('/tmp/Taskmasterd.pid', 'r') as f:
             pid = int(f.read().strip())
@@ -658,10 +384,11 @@ def main():
         except OSError:
             pass
     work_dir = os.getcwd()
+
     if args.daemon == False:
-        print("Running in foreground mode")
+        logging.info("Running in foreground mode")
     else:
-        print("Running in daemon mode")
+        logging.info("Running in daemon mode")
         daemonize(working_directory=work_dir)
         
     with open('/tmp/Taskmasterd.pid', 'w') as f:
@@ -687,3 +414,6 @@ def main():
 if __name__ == "__main__":
     main()
     sys.exit(0)
+
+
+

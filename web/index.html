@@ -4,140 +4,154 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Taskmaster Dashboard</title>
-    <link rel="stylesheet" href="css/dashboard.css">
-    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/modals.css">
+    <link rel="stylesheet" href="css/animations.css">
+    <link rel="icon" href="img/favicon.ico" type="image/x-icon">
 </head>
 <body>
-    <div class="dashboard-container">
-        <!-- Header -->
-        <header class="dashboard-header">
-            <div class="header-content">
-                <h1 class="dashboard-title">
-                    <span class="title-icon">TM</span>
-                    Taskmaster Dashboard
-                </h1>
-                <div class="header-controls">
-                    <div class="connection-status" id="connectionStatus">
-                        <span class="status-indicator"></span>
-                        <span class="status-text">Connecting...</span>
-                    </div>
-                    <button class="refresh-btn" id="refreshBtn" title="Refresh Status">
-                        <span class="refresh-icon">↻</span>
-                    </button>
-                    <div class="auto-refresh-toggle">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="autoRefreshToggle" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <span class="toggle-label">Auto-refresh</span>
-                    </div>
-                    <button class="logout-btn" id="logoutBtn" title="Logout" style="display: none;">
-                        <span class="logout-icon">⏻</span>
-                    </button>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>Taskmaster</h1>
+                <div class="connection-status">
+                    <span id="statusIndicator" class="status-indicator disconnected"></span>
+                    <span id="statusText" class="status-text">Disconnected</span>
                 </div>
             </div>
-        </header>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li class="active"><a href="#"><i class="material-icons">dashboard</i> Dashboard</a></li>
+                    <li><a href="#"><i class="material-icons">settings</i> Settings</a></li>
+                    <li><a href="/logs" target="_blank"><i class="material-icons">article</i> Logs</a></li>
+                    
+                </ul>
+            </nav>
+            <div class="sidebar-footer">
+                <span>v1.0.0</span>
+            </div>
+        </aside>
 
         <!-- Main Content -->
-        <main class="dashboard-main">
+        <main class="main-content">
+            <header class="main-header">
+                <h2 class="header-title">Dashboard</h2>
+                <div class="header-actions">
+                    <button id="refreshBtn" class="btn btn-icon" title="Refresh">
+                        <i class="material-icons">refresh</i>
+                    </button>
+                    <div class="auto-refresh-toggle">
+                        <label class="switch">
+                            <input type="checkbox" id="autoRefreshToggle" checked>
+                            <span class="slider round"></span>
+                        </label>
+                        <span>Auto Refresh</span>
+                    </div>
+                    <button id="themeToggleBtn" class="btn btn-icon theme-toggle" title="Toggle Theme">
+                        <i class="material-icons">dark_mode</i>
+                    </button>
+                    <button id="logoutBtn" class="btn btn-icon" style="display: none;" title="Logout">
+                        <i class="material-icons">logout</i>
+                    </button>
+                </div>
+            </header>
+
             <!-- Summary Cards -->
-            <section class="summary-section">
-                <div class="summary-cards">
-                    <div class="summary-card running">
-                        <div class="card-icon">▶</div>
-                        <div class="card-content">
-                            <div class="card-number" id="runningCount">0</div>
-                            <div class="card-label">Running</div>
-                        </div>
+            <div class="summary-cards">
+                <div class="card summary-card running">
+                    <div class="card-content">
+                        <h3>Running</h3>
+                        <div class="counter" id="runningCount">0</div>
                     </div>
-                    <div class="summary-card stopped">
-                        <div class="card-icon">⏸</div>
-                        <div class="card-content">
-                            <div class="card-number" id="stoppedCount">0</div>
-                            <div class="card-label">Stopped</div>
-                        </div>
-                    </div>
-                    <div class="summary-card error">
-                        <div class="card-icon">⚠</div>
-                        <div class="card-content">
-                            <div class="card-number" id="errorCount">0</div>
-                            <div class="card-label">Error</div>
-                        </div>
-                    </div>
-                    <div class="summary-card total">
-                        <div class="card-icon">∑</div>
-                        <div class="card-content">
-                            <div class="card-number" id="totalCount">0</div>
-                            <div class="card-label">Total</div>
-                        </div>
-                    </div>
+                    <div class="card-icon"><i class="material-icons">play_arrow</i></div>
                 </div>
-            </section>
+                <div class="card summary-card stopped">
+                    <div class="card-content">
+                        <h3>Stopped</h3>
+                        <div class="counter" id="stoppedCount">0</div>
+                    </div>
+                    <div class="card-icon"><i class="material-icons">stop</i></div>
+                </div>
+                <div class="card summary-card error">
+                    <div class="card-content">
+                        <h3>Error</h3>
+                        <div class="counter" id="errorCount">0</div>
+                    </div>
+                    <div class="card-icon"><i class="material-icons">error</i></div>
+                </div>
+                <div class="card summary-card total">
+                    <div class="card-content">
+                        <h3>Total</h3>
+                        <div class="counter" id="totalCount">0</div>
+                    </div>
+                    <div class="card-icon"><i class="material-icons">apps</i></div>
+                </div>
+            </div>
 
-            <!-- Controls Section -->
-            <section class="controls-section">
-                <div class="bulk-controls">
-                    <div class="bulk-actions">
-                        <button class="bulk-btn" id="selectAllBtn">Select All</button>
-                        <button class="bulk-btn" id="deselectAllBtn">Deselect All</button>
-                        <div class="bulk-divider"></div>
-                        <button class="bulk-action-btn start" id="bulkStartBtn" disabled>
-                            <span class="btn-icon">▶</span> Start Selected
-                        </button>
-                        <button class="bulk-action-btn stop" id="bulkStopBtn" disabled>
-                            <span class="btn-icon">⏹</span> Stop Selected
-                        </button>
-                        <button class="bulk-action-btn restart" id="bulkRestartBtn" disabled>
-                            <span class="btn-icon">↻</span> Restart Selected
-                        </button>
-                    </div>
-                    <div class="view-controls">
-                        <button class="view-btn active" id="gridViewBtn" title="Grid View">
-                            <span class="view-icon">⊞</span> Grid
-                        </button>
-                        <button class="view-btn" id="listViewBtn" title="List View">
-                            <span class="view-icon">☰</span> List
-                        </button>
-                    </div>
+            <!-- Bulk Controls -->
+            <div class="bulk-controls">
+                <div class="selection-controls">
+                    <button id="selectAllBtn" class="btn btn-sm">Select All</button>
+                    <button id="deselectAllBtn" class="btn btn-sm">Deselect All</button>
                 </div>
-            </section>
+                <div class="view-controls">
+                    <button id="gridViewBtn" class="btn btn-icon btn-sm active" title="Grid View">
+                        <i class="material-icons">grid_view</i>
+                    </button>
+                    <button id="listViewBtn" class="btn btn-icon btn-sm" title="List View">
+                        <i class="material-icons">view_list</i>
+                    </button>
+                </div>
+                <div class="action-controls">
+                    <button id="bulkStartBtn" class="btn btn-success btn-sm" disabled>Start</button>
+                    <button id="bulkStopBtn" class="btn btn-danger btn-sm" disabled>Stop</button>
+                    <button id="bulkRestartBtn" class="btn btn-warning btn-sm" disabled>Restart</button>
+                </div>
+            </div>
 
-            <!-- Processes Section -->
-            <section class="processes-section">
-                <div class="processes-container" id="processesContainer">
-                    <!-- Process cards will be dynamically generated here -->
+            <!-- Processes Container -->
+            <div id="processesContainer" class="processes-container">
+                <!-- Process cards will be dynamically added here -->
+                <div class="empty-state" style="display: none;">
+                    <div class="empty-icon"><i class="material-icons">sentiment_dissatisfied</i></div>
+                    <h3>No Processes Found</h3>
+                    <p>There are no configured processes available.</p>
                 </div>
-            </section>
+            </div>
         </main>
+    </div>
 
-        <!-- Loading Overlay -->
-        <div class="loading-overlay" id="loadingOverlay">
-            <div class="loading-spinner"></div>
-            <div class="loading-text">Loading processes...</div>
-        </div>
-
-        <!-- Error Modal -->
-        <div class="modal-overlay" id="errorModal">
-            <div class="modal">
+    <!-- Error Modal -->
+    <div class="modal" id="errorModal">
+        <div class="modal-dialog">
+            <div class="modal-content">
                 <div class="modal-header">
-                    <h3 class="modal-title">Error</h3>
-                    <button class="modal-close" id="errorModalClose">&times;</button>
+                    <h4 id="errorModalTitle">Error</h4>
+                    <button class="close-btn" id="errorModalClose"><i class="material-icons">close</i></button>
                 </div>
-                <div class="modal-body">
-                    <p id="errorMessage">An error occurred.</p>
+                <div class="modal-body" id="errorModalBody">
+                    <div class="error-container">
+                        <i class="material-icons error-icon">error</i>
+                        <p id="errorModalMessage">An error occurred.</p>
+                    </div>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-primary" id="errorModalOk">OK</button>
+                    <button class="btn btn-primary" id="errorModalClose2">Close</button>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Process Detail Modal -->
-        <div class="modal-overlay" id="detailModal">
-            <div class="modal modal-large">
+    <!-- Process Detail Modal -->
+    <div class="modal" id="detailModal">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
                 <div class="modal-header">
-                    <h3 class="modal-title" id="detailModalTitle">Process Details</h3>
-                    <button class="modal-close" id="detailModalClose">&times;</button>
+                    <h4>Process Details</h4>
+                    <button class="close-btn" id="detailModalClose"><i class="material-icons">close</i></button>
                 </div>
                 <div class="modal-body" id="detailModalBody">
                     <!-- Process details will be populated here -->
@@ -157,6 +171,7 @@
     <!-- Scripts -->
     <script src="js/utils.js"></script>
     <script src="js/api.js"></script>
+    <script src="js/theme.js"></script>
     <script src="js/components.js"></script>
     <script src="js/dashboard.js"></script>
 </body>

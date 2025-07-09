@@ -45,7 +45,6 @@ class TaskmasterUI:
         self.setup()
 
 
-
     def setup(self, reload=False):
         if reload and old_pathfile:
             self.filepath = old_pathfile
@@ -57,7 +56,6 @@ class TaskmasterUI:
         self.client = Taskmasterctl(self.method, self.port, self.host)
         self.deamon_isAlive()
         if not self.client:
-            print("Error: Unable to connect to Taskmaster daemon. Please check your configuration.")
             sys.exit(1)
         if reload:
             self.programs = self.get_programs()
@@ -71,10 +69,9 @@ class TaskmasterUI:
             if response and response['status'] == 'success':
                 pass
             else:
-                print("Taskmaster daemon is not running or reachable. Please start the daemon first.")
+                print("Taskmaster daemon is not running or not responding.")
                 sys.exit(1)
         except Exception as e:
-            print(f"Error connecting to Taskmaster daemon: {e}")
             sys.exit(1)
         
         
@@ -387,12 +384,25 @@ class TaskmasterUI:
             self.footer.set_text("Taskmaster Version: 1.1.1")
             
         elif cmd == "reload":
-            self.handle_reload_command()
+            if not self.check_config_changemment():
+                self.footer.set_text(f"cannot change config server, please restart the application, only programs can be changed")
+            else:
+                self.handle_reload_command()
+                self.refresh_view()
             
         else:
             self.footer.set_text(f"Unknown command: {command}. Type 'help' for available commands")
 
-
+    def check_config_changemment(self):
+        Config = ConfigManager(self.filepath)
+        server_config = Config.get_server_config()
+        method = server_config.get('type', 'socket')
+        port = server_config.get('port', 1337)
+        host = server_config.get('host', 'localhost')
+        if (self.method != method or self.port != port or self.host != host):
+            return False
+        return True
+    
     def check_program_cmd(self, program_name):
         program = self.get_program(program_name.strip())
         if not program:
@@ -565,7 +575,7 @@ class TaskmasterUI:
     def handle_reload_command(self):
         """Handle the reload command"""
         self.client.send_command('reload')
-        time.sleep(1.5)
+        time.sleep(1)
         self.reload_config()
         
 

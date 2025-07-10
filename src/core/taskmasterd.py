@@ -412,8 +412,11 @@ def main():
     # server.start()
 
 if __name__ == "__main__":
-    main()
-    sys.exit(0)
-
+    try:
+        main()
+        sys.exit(0)
+    except Exception as e:
+        logging.error(f"issues in configfile: {e}")
+        sys.exit(1)
 
 

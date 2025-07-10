@@ -48,11 +48,34 @@ programs:
   scan_network:
     cmd: "/usr/bin/nmap 192.168.1.1"
     autostart: true 
-    user: "hjs"
+    user: "kali"
     group: "kali"
     priority: 10
     workingdir: /home/kali/work
     stdout: 
-      path : /tmp/nmap.stdout
+      path : /tmp/12.stdout
       maxbytes: 1024
+    autorestart: unexpected
+    exitcodes: [5]
+    env:
+      NMAP_color: "yes"
     # startsecs: 5
+  test_env:
+    cmd: "./test_env"
+    numprocs: 2
+    umask: "022"
+    user: "kali"
+    group: "kali"
+    priority: 10
+    workingdir: /home/kali/
+    autostart: true
+    autorestart: never
+    exitcodes: [0]
+    startsecs: 0
+    startretries: 3
+    stdout: 
+      path : /tmp/test_env.stdout
+      maxbytes: 1024
+    stderr: /tmp/test_env.stderr
+    env:
+      myvar = "test_value"

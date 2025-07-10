@@ -7,22 +7,16 @@
 #     host: "localhost" 
 server:
     type: "http"    # http or socket     
-    # host: "localhost"  # Hostname or IP address    
-    port: 5555     # Port number for the server
+    host: "localhost"  # Hostname or IP address    
+    port: 8000     # Port number for the server
 
-smtp:
-  server: smtp.gmail.com
-  port: 587
-  use_tls: true
-  username: "mounadi2015@gmail.com"
-  password: "vfhq aehm wkhb ajix"  
 
 webui:
   enabled: true
   host: "127.0.0.1"     
   port: 8080 
 
- 
+
 
 programs:
   # pro05:
@@ -59,9 +53,64 @@ programs:
   #   env:
   #     TEST_VAR: "test_value"
 
+
+
+  # pro6:
+  #   cmd: "/home/kali/pro6.sh"
+  #   numprocs: 4
+  #   umask: "022"
+  #   user: "kali"
+  #   group: "kali"
+  #   priority: 10
+  #   workingdir: /tmp
+  #   autostart: true
+  #   autorestart: always
+  #   exitcodes: [0]
+  #   startretries: 3
+  #   startsecs: 1
+  #   stopsignal: TERM
+  #   stoptsecs: 5
+
+  writer:
+    cmd: "/home/kali/test05"
+    numprocs: 5
+    umask: "022"
+    user: "kali"
+    group: "kali"
+    priority: 10
+    workingdir: /home/kali/testing/
+    autorestart: never
+    exitcodes: [0]
+    startsecs: 0
+    startretries: 4
+    stdout: 
+      path : /tmp/writer.stdout
+      maxbytes: 1024
+    stderr: /tmp/writer.stderr
+    # on_failure:
+    #   smtp:
+    #     enabled: true
+    #     from: "mounadi2015@gmail.com"
+    #     to:
+    #       - "mounadi05@icloud.com"
+
+  test_signal:
+    cmd: "python3 /home/kali/work/test_signal.py"
+    numprocs: 10
+    umask: "022"
+    priority: 15
+    workingdir: /home/kali
+    autostart: true
+    stopsignal: USR1
+    stoptsecs: 2
+    stdout: 
+      path : /tmp/signal.stdout
+      maxbytes: 1024
+    stderr: /tmp/signal.stderr
+  
   # scan_network:
   #   cmd: "/usr/bin/nmap 192.168.1.1"
-  #   autostart: false
+  #   autostart: true 
   #   user: "kali"
   #   group: "kali"
   #   priority: 10
@@ -74,57 +123,17 @@ programs:
   #       enabled: true
   #       from: "mounadi2015@gmail.com"
   #       to:
-  #         - "youssef1erretby10@gmail.com"
+  #         - "mounadi05@icloud.com"
   #   startsecs: 5
-    
-
-  # pro6:
-  #   cmd: "/home/kali/pro6.sh"
-  #   numprocs: 4
-  #   umask: "022"
-  #   user: "kali"
-  #   group: "kali"
-  #   priority: 10
-  #   workingdir: /tmp
-  #   autostart: true
-  #   autorestart: never
-  #   exitcodes: [0]
-  #   startretries: 3
-  #   startsecs: 1
-  #   stopsignal: TERM
-  #   stoptsecs: 5
-
-  writer:
-    cmd: "python3  echo hello && sleep 10"
-    numprocs: 5
-    umask: "777"
+  
+  scan_network:
+    cmd: "/usr/bin/nmap 192.168.1.1"
+    autostart: true 
     user: "kali"
     group: "kali"
     priority: 10
-    workingdir: /home/kali/testing/
-    autorestart: never
-    exitcodes: [0]
-    startsecs: 0
-    startretries: 4
-    on_failure:
-      smtp:
-        enabled: true
-        from: "mounadi2015@gmail.com"
-        to:
-          - "mounadi05@icloud.com"
-
-  # test_signal:
-  #   cmd: "python3 /home/kali/work/test_signal.py"
-  #   numprocs: 10
-  #   umask: "022"
-  #   priority: 15
-  #   workingdir: /home/kali
-  #   autostart: true
-  #   stopsignal: USR1
-  #   stoptsecs: 2
-  #   stdout: 
-  #     path : /tmp/signal.stdout
-  #     maxbytes: 1024
-  #   stderr: /tmp/signal.stderr
-  
-
+    workingdir: /home/kali/work
+    stdout: 
+      path : /tmp/nmap.stdout
+      maxbytes: 1024
+    startsecs: 5

@@ -286,16 +286,35 @@ class ProcessWorker:
                 self.logger.error(f"Failed to set user: {e}")
                 sys.exit(1)
 
+    def _rename_log_file(self, old_name: str) -> str:
+        """Rename log file if it already exists."""
+        if not os.path.exists(old_name):
+            return old_name
+        base, ext = os.path.splitext(old_name)
+        new_name = f"{base}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{ext}"
+        self.logger.warning(f"Log file {old_name} already exists, renaming to {new_name}")
+        os.rename(old_name, new_name)
+        return new_name
+
     def _setup_log_file(self, stream: str) -> Optional[int]:
-        """Set up log file for stdout/stderr."""
         config = self.config.get(stream)
         if not config:
             return subprocess.DEVNULL
-
         if isinstance(config, str):
-            return open(config, 'a')
+            if os.path.exists(os.path.dirname(config)):
+                new_name = self._rename_log_file(config)
+                return open(new_name, 'a')
+            else:   
+                return open(config, 'a')
         elif isinstance(config, dict):
-            return open(config['path'], 'a')
+            if 'path' in config and os.path.exists(os.path.dirname(config['path'])):
+                new_name = self._rename_log_file(config['path'])
+                return open(new_name, 'a')
+            elif 'path' in config:
+                return open(config['path'], 'a')
+            else:
+                self.logger.error(f"Invalid log configuration for {stream}: {config}")
+                return subprocess.DEVNULL
         
         return subprocess.DEVNULL
 

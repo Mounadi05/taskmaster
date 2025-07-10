@@ -172,7 +172,6 @@ def main():
             port=server_config.get('port', 1337),
             host=server_config.get('host', 'localhost')
         )
-        
         # Check if Taskmaster server is running
         try:
             response = client.send_command('alive')

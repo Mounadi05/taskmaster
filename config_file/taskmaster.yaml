@@ -1,0 +1,46 @@
+server:
+    type: "http"    # http or socket     
+    host: "localhost"  # Hostname or IP address    
+    port: 9999     # Port number for the server
+
+
+webui:
+  enabled: true
+  host: "127.0.0.1"     
+  port: 8080 
+
+
+
+programs:
+  pro6:
+    cmd: "/home/kali/pro6.sh"
+    numprocs: 4
+    umask: "022"
+    user: "kali"
+    group: "kali"
+    priority: 10
+    workingdir: /tmp
+    autostart: true
+    autorestart: always
+    exitcodes: [0]
+    startretries: 3
+    startsecs: 1
+    stopsignal: TERM
+    stoptsecs: 5
+
+  writer:
+    cmd: "/home/kali/test05"
+    numprocs: 5
+    umask: "022"
+    user: "kali"
+    group: "kali"
+    priority: 10
+    workingdir: /home/kali/testing/
+    autorestart: never
+    exitcodes: [0]
+    startsecs: 0
+    startretries: 4
+    stdout: 
+      path : /tmp/writer.stdout
+      maxbytes: 1024
+    stderr: /tmp/writer.stderr

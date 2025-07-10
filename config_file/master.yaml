@@ -1,10 +1,3 @@
-# Server configuration
-# Controls how Taskmaster server communicates with clients
-## server not required , if not exist it will use default values
-# server:
-#     type: "socket"  
-#     port: 1337     
-#     host: "localhost" 
 server:
     type: "http"    # http or socket     
     host: "localhost"  # Hostname or IP address    
@@ -19,57 +12,6 @@ webui:
 
 
 programs:
-  # pro05:
-  #   cmd: "/home/kali/pro05.sh"
-  #   numprocs: 1
-  #   umask: "022"
-  #   user: "kali"
-  #   group: "kali"
-  #   priority: 10
-  #   workingdir: /home/kali
-  #   autostart: false
-  #   autorestart: unexpected
-  #   exitcodes: [0]
-  #   startretries: 1
-  #   startsecs: 2
-  #   stopsignal: TERM
-  #   stoptsecs: 5
-  #   on_failure:
-  #     smtp:
-  #       enabled: true
-  #       from: "mounadi2015@gmail.com"
-  #       to:
-  #         - "youssef1erretby10@gmail.com"
-  #   on_success:
-  #     smtp:
-  #       enabled: true
-  #       from: "mounadi2015@gmail.com"
-  #       to:
-  #         - "youssef1erretby10@gmail.com"
-  #   stdout: 
-  #     path : /tmp/pro1.stdout
-  #     maxbytes: 1024
-  #   stderr: /tmp/pro1.stderr
-  #   env:
-  #     TEST_VAR: "test_value"
-
-
-
-  # pro6:
-  #   cmd: "/home/kali/pro6.sh"
-  #   numprocs: 4
-  #   umask: "022"
-  #   user: "kali"
-  #   group: "kali"
-  #   priority: 10
-  #   workingdir: /tmp
-  #   autostart: true
-  #   autorestart: always
-  #   exitcodes: [0]
-  #   startretries: 3
-  #   startsecs: 1
-  #   stopsignal: TERM
-  #   stoptsecs: 5
 
   writer:
     cmd: "/home/kali/test05"
@@ -87,12 +29,7 @@ programs:
       path : /tmp/writer.stdout
       maxbytes: 1024
     stderr: /tmp/writer.stderr
-    # on_failure:
-    #   smtp:
-    #     enabled: true
-    #     from: "mounadi2015@gmail.com"
-    #     to:
-    #       - "mounadi05@icloud.com"
+
 
   test_signal:
     cmd: "python3 /home/kali/work/test_signal.py"
@@ -107,24 +44,6 @@ programs:
       path : /tmp/signal.stdout
       maxbytes: 1024
     stderr: /tmp/signal.stderr
-  
-  # scan_network:
-  #   cmd: "/usr/bin/nmap 192.168.1.1"
-  #   autostart: true 
-  #   user: "kali"
-  #   group: "kali"
-  #   priority: 10
-  #   workingdir: /home/kali/work
-  #   stdout: 
-  #     path : /tmp/www.stdout
-  #     maxbytes: 1024
-  #   on_success:
-  #     smtp:
-  #       enabled: true
-  #       from: "mounadi2015@gmail.com"
-  #       to:
-  #         - "mounadi05@icloud.com"
-  #   startsecs: 5
   
   scan_network:
     cmd: "/usr/bin/nmap 192.168.1.1"

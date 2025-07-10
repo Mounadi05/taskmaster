@@ -189,12 +189,13 @@ class ProcessWorker:
 
         except ProcessLookupError:
             # Process already dead
-            self.status = "stopped"
+            self.status = "fatal"
             self.stop_time = datetime.now()
             return True
         except Exception as e:
             self.handle_notification('failure', 'stop', str(e))
             self.logger.error(f"Error stopping process {self.name}: {e}")
+            self.status = "fatal"
             return False
 
     def restart(self) -> bool:

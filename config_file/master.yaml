@@ -5,7 +5,7 @@ server:
 
 
 webui:
-  enabled: true
+  enabled: false
   host: "127.0.0.1"     
   port: 8080 
 
@@ -77,5 +77,5 @@ programs:
       path : /tmp/test_env.stdout
       maxbytes: 1024
     stderr: /tmp/test_env.stderr
-    env:
-      myvar = "test_value"
+    # env:
+    #   myvar = "test_value"

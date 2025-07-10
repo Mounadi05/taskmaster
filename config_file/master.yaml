@@ -20,7 +20,7 @@ programs:
     user: "kali"
     group: "kali"
     priority: 10
-    workingdir: /home/kali/testing/
+    # workingdir: /home/kali/testing/
     autorestart: never
     exitcodes: [0]
     startsecs: 0
@@ -51,8 +51,8 @@ programs:
     user: "kali"
     group: "kali"
     priority: 10
-    workingdir: /home/kali/work
+    # workingdir: /home/kali/work
     stdout: 
       path : /tmp/nmap.stdout
       maxbytes: 1024
-    startsecs: 5
+    # startsecs: 5

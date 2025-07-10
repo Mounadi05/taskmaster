@@ -240,7 +240,7 @@ class APIResponseHandler {
             'stopping': 'stopping',
             'error': 'error',
             'fatal': 'error',
-            'exited': 'error'
+            'exited': 'exited'
         };
         return statusMap[status] || 'stopped';
     }

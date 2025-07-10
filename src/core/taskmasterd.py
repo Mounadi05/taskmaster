@@ -234,7 +234,7 @@ class TaskmasterServer:
     def stop(self):
         """Stop both servers"""
         self.running = False
-        
+        self.process_manager.stop_all()
         if self.http_server:
             self.http_server.shutdown()
         
@@ -284,6 +284,9 @@ def signal_handler():
     """Handle termination signals"""
     if os.path.exists('/tmp/Taskmasterd.pid'):
         os.rmdir('/tmp/Taskmasterd.pid')
+    if old_server:
+        old_server.stop()
+        old_server = None
     sys.exit(0)
 
 
@@ -384,6 +387,9 @@ def main():
         except OSError:
             pass
     work_dir = os.getcwd()
+    if args.config and  not os.path.exists(args.config):
+        print(f"Config file {args.config} does not exist")
+        sys.exit(1)
 
     if args.daemon == False:
         logging.info("Running in foreground mode")
@@ -393,6 +399,8 @@ def main():
         
     with open('/tmp/Taskmasterd.pid', 'w') as f:
         f.write(str(os.getpid()))
+    
+  
     
     if args.config:
         old_pathfile = args.config
@@ -416,7 +424,7 @@ if __name__ == "__main__":
         main()
         sys.exit(0)
     except Exception as e:
-        logging.error(f"issues in configfile: {e}")
+        print(f"issues in configfile")
         sys.exit(1)
 
 

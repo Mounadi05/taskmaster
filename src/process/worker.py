@@ -99,6 +99,7 @@ class ProcessWorker:
                     uid = pw.pw_uid
                     gid = pw.pw_gid
                 except KeyError:
+                    self.status = "fatal"
                     self.logger.error(f"User {self.config['user']} not found")
                     return False
 
@@ -106,6 +107,7 @@ class ProcessWorker:
                 try:
                     gr = grp.getgrnam(self.config['group'])
                     gid = gr.gr_gid
+                    self.status = "fatal"
                 except KeyError:
                     self.logger.error(f"Group {self.config['group']} not found")
                     return False
@@ -143,12 +145,12 @@ class ProcessWorker:
             return True
 
         except Exception as e:
+            self.status = "fatal"
             self.logger.error(f"Error spawne process {self.name}: {e}")
             if restart:
                 self.handle_notification('failure', 'restart', str(e))
             else:
                 self.handle_notification('failure', 'start', str(e))
-            self.status = "fatal"
             if 'umask' in self.config:
                 os.umask(old_umask)
             return False

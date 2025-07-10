@@ -48,7 +48,7 @@ programs:
   scan_network:
     cmd: "/usr/bin/nmap 192.168.1.1"
     autostart: true 
-    user: "kali"
+    user: "hjs"
     group: "kali"
     priority: 10
     workingdir: /home/kali/work
